@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import config from './config/index.js';
 import api from './routes/index.js';
 import { notFound } from './middleware/not-found.js';
 import { errorHandler } from './middleware/error-handler.js';

@@ -40,8 +40,8 @@ export default function ProfilePage() {
   /* -------- Заказы -------- */
   const [orders, setOrders] = useState(null);
   const [ordersError, setOrdersError] = useState("");
-  const [open, setOpen] = useState({}); // { [orderId]: boolean }
-  const [visibleCount, setVisibleCount] = useState(5); // показываем порциями по 5
+  const [open, setOpen] = useState({});
+  const [visibleCount, setVisibleCount] = useState(5);
 
   // --- UI helpers ---
   const Rub = ({ value = 0 }) => (
@@ -49,19 +49,46 @@ export default function ProfilePage() {
       {Number(value).toLocaleString("ru-RU")} ₽
     </span>
   );
-  const StatusBadge = ({ issued }) => (
+
+  const getStatusText = (status) => {
+    const map = {
+      pending: "В обработке",
+      fulfilled: "Выполнен",
+      captured: "Оплачен",
+      failed: "Отменён",
+      cancelled: "Отменён",
+      issued: "Выдан",
+    };
+    return map[status] || status;
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: "bg-yellow-500/15 text-yellow-300 border-yellow-400/30",
+      fulfilled: "bg-green-500/15 text-green-300 border-green-400/30",
+      captured: "bg-blue-500/15 text-blue-300 border-blue-400/30",
+      failed: "bg-red-500/15 text-red-300 border-red-400/30",
+      cancelled: "bg-red-500/15 text-red-300 border-red-400/30",
+      issued: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
+    };
+    return colors[status] || "bg-gray-500/15 text-gray-300 border-gray-400/30";
+  };
+
+  const StatusBadge = ({ status }) => (
     <span
-      className={
-        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border " +
-        (issued
-          ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/30"
-          : "bg-amber-500/15 text-amber-300 border-amber-400/30")
-      }
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+        status
+      )}`}
     >
-      {issued ? <PackageCheck size={14} /> : <PackageOpen size={14} />}
-      {issued ? "Выдан" : "Не выдан"}
+      {status === "issued" || status === "fulfilled" ? (
+        <PackageCheck size={14} />
+      ) : (
+        <PackageOpen size={14} />
+      )}
+      {getStatusText(status)}
     </span>
   );
+
   const NoteChip = ({ note }) => (
     <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 border border-white/20 text-white/80">
       {note || "—"}
@@ -95,29 +122,14 @@ export default function ProfilePage() {
             try {
               const full = await getOrder(o.id);
               const items = Array.isArray(full?.items) ? full.items : [];
-              const allIssued =
-                items.length > 0 &&
-                items.every(
-                  (it) =>
-                    (it.fulfillment_status || "").toLowerCase() === "issued"
-                );
-              const deliveredAt = items.reduce((max, it) => {
-                const t = it.delivered_at
-                  ? new Date(it.delivered_at).getTime()
-                  : 0;
-                return t > max ? t : max;
-              }, 0);
+
               return {
                 ...o,
                 ...full,
                 _items: items,
-                _issued: allIssued,
-                _deliveredAt: deliveredAt
-                  ? new Date(deliveredAt).toISOString()
-                  : null,
               };
             } catch {
-              return { ...o, _items: [], _issued: false, _deliveredAt: null };
+              return { ...o, _items: [] };
             }
           })
         );
@@ -130,7 +142,7 @@ export default function ProfilePage() {
         });
 
         setOrders(enriched);
-        setVisibleCount(5); // сбрасываем видимость при новой загрузке
+        setVisibleCount(5);
       } catch (e) {
         console.error(e);
         setOrders([]);
@@ -246,7 +258,11 @@ export default function ProfilePage() {
             <div className="mt-4">
               <Link
                 to="/admin"
-                className="rounded-xl px-4 py-2 border text-white hover:opacity-95"
+                className="rounded-xl px-4 py-2 border text-white hover:opacity-95 inline-block"
+                style={{
+                  background: "rgba(255,255,255,0.12)",
+                  borderColor: "rgba(255,255,255,0.25)",
+                }}
               >
                 Перейти в дашборд
               </Link>
@@ -272,11 +288,6 @@ export default function ProfilePage() {
           <>
             <div className="overflow-x-auto">
               {orders.slice(0, visibleCount).map((o, i) => {
-                const note =
-                  o.notes ||
-                  (o.payment_status === "failed"
-                    ? "Банк отклонил оплату"
-                    : "Оплата онлайн");
                 const created = o.created_at
                   ? new Date(o.created_at).toLocaleString("ru-RU")
                   : "";
@@ -308,8 +319,9 @@ export default function ProfilePage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-6 text-sm text-white/90">
-                        <StatusBadge issued={o._issued} />
-                        <NoteChip note={note} />
+                        <StatusBadge status={o.status} />
+                        <StatusBadge status={o.payment_status} />
+                        {o.notes && <NoteChip note={o.notes} />}
                         <Rub value={o.total_amount ?? 0} />
                         <span>{created}</span>
                       </div>
@@ -354,10 +366,8 @@ export default function ProfilePage() {
                                     </td>
                                     <td className="py-2 pr-3">
                                       <StatusBadge
-                                        issued={
-                                          (
-                                            it.fulfillment_status || ""
-                                          ).toLowerCase() === "issued"
+                                        status={
+                                          it.fulfillment_status || "pending"
                                         }
                                       />
                                     </td>

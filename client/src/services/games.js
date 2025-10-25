@@ -1,4 +1,4 @@
-import { apiFetch, resolveImage } from "../lib/api";
+import { apiFetch, resolveImage, API_URL } from "../lib/api";
 
 // --- утилиты парсинга ---
 function pickArray(payload) {
@@ -10,16 +10,36 @@ function pickArray(payload) {
   return [];
 }
 
+// СЫРОЙ список игр для админки: возвращает как есть из бэка (с датами)
+export async function fetchGamesRaw({ page = 1, limit = 100, ...rest } = {}) {
+  const qs = new URLSearchParams();
+  qs.set("page", String(page));
+  qs.set("limit", String(limit));
+  for (const [k, v] of Object.entries(rest)) {
+    if (v == null || v === "") continue;
+    qs.set(k, Array.isArray(v) ? v.join(",") : String(v));
+  }
+  const res = await apiFetch(`/games?${qs.toString()}`);
+  const items = Array.isArray(res?.items)
+    ? res.items
+    : Array.isArray(res)
+    ? res
+    : [];
+  return items;
+}
+
 function formatRub(v) {
   if (v == null || v === "") return "";
   const n = Number(String(v).replace(",", "."));
   if (!Number.isFinite(n)) return String(v);
   const rub = Math.round(n);
-  return rub.toLocaleString("ru-RU", {
-    useGrouping: true,
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }) + " ₽";
+  return (
+    rub.toLocaleString("ru-RU", {
+      useGrouping: true,
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    }) + " ₽"
+  );
 }
 
 /* ===== НОРМАЛИЗАЦИЯ ИГРЫ ===== */
@@ -27,7 +47,6 @@ function mapGame(g) {
   const cover = g?.cover_url || g?.cover || g?.image || "";
   const screenshots = Array.isArray(g?.screenshots) ? g.screenshots : [];
 
-  // добавляем поля с бэка
   const discountPercent = Number(g?.discount_percent ?? 0);
   const basePrice = g?.base_price;
   const finalPrice = g?.price ?? g?.price_rub ?? g?.cost;
@@ -35,13 +54,15 @@ function mapGame(g) {
   return {
     id: g?.id ?? g?._id ?? g?.game_id ?? g?.slug ?? String(Math.random()),
     name: g?.name ?? g?.title ?? "Без названия",
-    publisher: g?.publisher ?? g?.developer ?? "",            // ← ВАЖНО: прокидываем
-    price: formatRub(finalPrice),                              // финальная цена
+    publisher: g?.publisher ?? g?.developer ?? "",
+    price: formatRub(finalPrice),
     oldPrice:
-      discountPercent > 0 && basePrice != null && Number(basePrice) > Number(finalPrice)
+      discountPercent > 0 &&
+      basePrice != null &&
+      Number(basePrice) > Number(finalPrice)
         ? formatRub(basePrice)
         : "",
-    discountPercent,                                           // ← для бейджа
+    discountPercent,
     image: resolveImage(cover),
     screenshots: screenshots.map((s) => ({
       alt: s.alt || "",
@@ -51,8 +72,6 @@ function mapGame(g) {
     tag: g?.tag ?? g?.badge ?? null,
   };
 }
-
-
 
 /* ===== СПРАВОЧНИКИ (ЖАНРЫ/ПЛАТФОРМЫ) ===== */
 export async function fetchGenres() {
@@ -71,7 +90,6 @@ export async function fetchGenres() {
             return { id: String(id ?? name), name };
           })
           .filter(Boolean);
-        // console.log("[filters] genres:", list);
         return list;
       }
     } catch {}
@@ -80,7 +98,11 @@ export async function fetchGenres() {
 }
 
 export async function fetchPlatforms() {
-  const candidates = ["/platforms", "/games/filters/platforms", "/filters/platforms"];
+  const candidates = [
+    "/platforms",
+    "/games/filters/platforms",
+    "/filters/platforms",
+  ];
   for (const path of candidates) {
     try {
       const res = await apiFetch(path);
@@ -95,7 +117,6 @@ export async function fetchPlatforms() {
             return { id: String(id ?? name), name };
           })
           .filter(Boolean);
-        // console.log("[filters] platforms:", list);
         return list;
       }
     } catch {}
@@ -104,15 +125,6 @@ export async function fetchPlatforms() {
 }
 
 /* ===== ОСНОВНАЯ ВЫБОРКА ДЛЯ КАТАЛОГА ===== */
-/**
- * @param {Object} params
- *  - sort: 'name' | 'price_asc' | 'price_desc'
- *  - genreIds: (string|number)[]
- *  - platformIds: (string|number)[]
- *  - priceMin, priceMax: number|string
- *  - page, limit
- *  - genres, platforms: string[] (если бэк принимает названия)
- */
 export async function fetchGames({
   sort = "name",
   genreIds = [],
@@ -126,37 +138,38 @@ export async function fetchGames({
 } = {}) {
   const qs = new URLSearchParams();
 
-  // пагинация
   qs.set("page", String(page));
   qs.set("limit", String(limit));
-
-  // сортировка — отправляем в двух форматах на всякий
-  qs.set("sort", sort); // name | price_asc | price_desc
+  qs.set("sort", sort);
   const order =
-    sort === "name" ? "name_asc" :
-    sort === "price_asc" ? "price_asc" :
-    sort === "price_desc" ? "price_desc" : String(sort);
+    sort === "name"
+      ? "name_asc"
+      : sort === "price_asc"
+      ? "price_asc"
+      : sort === "price_desc"
+      ? "price_desc"
+      : String(sort);
   qs.set("order", order);
 
-  // приводим ID к числам (если это числа), иначе оставляем строки
-  const gIds = (genreIds || []).map(v => (String(Number(v)) === String(v) ? Number(v) : String(v)));
-  const pIds = (platformIds || []).map(v => (String(Number(v)) === String(v) ? Number(v) : String(v)));
+  const gIds = (genreIds || []).map((v) =>
+    String(Number(v)) === String(v) ? Number(v) : String(v)
+  );
+  const pIds = (platformIds || []).map((v) =>
+    String(Number(v)) === String(v) ? Number(v) : String(v)
+  );
 
-  // жанры — и id, и имена
   if (gIds.length) {
     qs.set("genreIds", gIds.join(","));
-    qs.set("genre_ids", gIds.join(",")); // альтернативный кейс
+    qs.set("genre_ids", gIds.join(","));
   }
-  if (genres.length) qs.set("genres", genres.join(",")); // если API принимает имена
+  if (genres.length) qs.set("genres", genres.join(","));
 
-  // платформы — и id, и имена
   if (pIds.length) {
     qs.set("platformIds", pIds.join(","));
     qs.set("platform_ids", pIds.join(","));
   }
   if (platforms.length) qs.set("platforms", platforms.join(","));
 
-  // цена — оба варианта ключей
   if (priceMin !== "" && priceMin != null) {
     qs.set("priceMin", String(priceMin));
     qs.set("min_price", String(priceMin));
@@ -167,12 +180,10 @@ export async function fetchGames({
   }
 
   const url = `/games?${qs.toString()}`;
-  console.log("[fetchGames]", url); // ← временно, для дебага
   const res = await apiFetch(url);
   return pickArray(res).map(mapGame);
 }
 
-/* ===== ДРУГИЕ ГОТОВЫЕ БЛОКИ (как были) ===== */
 export async function fetchPopularGames(limit = 8) {
   try {
     const data = await apiFetch(`/games?sort=popular&limit=${limit}`);
@@ -230,26 +241,37 @@ export const clearCart = () => apiFetch("/cart", { method: "DELETE" });
 
 function parseGameDetail(g) {
   if (!g) return null;
+
   const scrRaw = Array.isArray(g.screenshots) ? g.screenshots : [];
   const screenshots = scrRaw.map((s) =>
-    typeof s === "string" ? { url: resolveImage(s), alt: "" } :
-    { ...s, url: resolveImage(s.url || "") }
+    typeof s === "string"
+      ? { url: resolveImage(s), alt: "" }
+      : { ...s, url: resolveImage(s.url || ""), alt: s.alt || "" }
   );
 
   return {
-    id: g.id,
+    id: g.id ?? g.game_id ?? g.slug ?? null,
     title: g.title || g.name || "Без названия",
-    description: g.description || "",
-    developer: g.developer || "",
+    description: g.description || g.desc || "",
+    developer: g.developer || g.dev || "",
     publisher: g.publisher || "",
-    age_rating: g.age_rating || "",
+    age_rating: g.age_rating || g.esrb || g.pegi || "",
+
     base_price: g.base_price ?? null,
     discount_percent: g.discount_percent ?? 0,
     price: g.price ?? g.price_final ?? null,
     price_final: g.price_final ?? g.price ?? null,
+
+    release_date: g.release_date || null,
+    created_at: g.created_at || null,
+    updated_at: g.updated_at || null,
+
+    rating: g.rating || null,
+    reviews: g.reviews || [],
+
     cover_url: resolveImage(g.cover_url || ""),
-    genres: Array.isArray(g.genres) ? g.genres : [],
-    platforms: Array.isArray(g.platforms) ? g.platforms : [],
+    genres: g.genres || [],
+    platforms: g.platforms || [],
     screenshots,
   };
 }
@@ -257,4 +279,53 @@ function parseGameDetail(g) {
 export async function fetchGame(idOrSlug) {
   const data = await apiFetch(`/games/${idOrSlug}`);
   return parseGameDetail(data);
+}
+
+export async function updateGame(id, payload) {
+  return apiFetch(`/games/${id}`, { method: "PUT", body: payload });
+}
+
+export async function updateGameGenres(
+  id,
+  { genreIds = [], genreNames = [] } = {}
+) {
+  const body = {};
+  if (genreIds.length) body.genre_ids = genreIds;
+  if (genreNames.length) body.genre_names = genreNames;
+  return apiFetch(`/games/${id}/genres`, { method: "PUT", body });
+}
+
+export async function updateGamePlatforms(id, { platformIds = [] } = {}) {
+  const body = { platform_ids: platformIds };
+  return apiFetch(`/games/${id}/platforms`, { method: "PUT", body });
+}
+
+export async function createGame(payload) {
+  return apiFetch(`/games`, { method: "POST", body: payload });
+}
+
+/**
+ * ✅ Единственная функция загрузки изображений
+ * Загружает файл на сервер в указанную папку (covers или screens)
+ * @param {string} folder - "covers" или "screens"
+ * @param {File} file - файл изображения
+ * @returns {Promise<{url: string, rel: string}>} - URL и относительный путь
+ */
+export async function uploadImageTo(folder, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // Используем API_URL напрямую, так как это multipart/form-data
+  const res = await fetch(`${API_URL}/media/upload?folder=${folder}`, {
+    method: "POST",
+    credentials: "include",
+    body: formData, // НЕ указываем Content-Type - браузер сам установит с boundary
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Ошибка загрузки: HTTP ${res.status}`);
+  }
+
+  return res.json();
 }

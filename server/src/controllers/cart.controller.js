@@ -6,21 +6,21 @@ function httpError(status, message) {
   return e;
 }
 
+// Функция для поиска или создания открытого заказа
 async function findOrCreateOpenOrder(userId) {
-  // Ищем ТОЛЬКО «черновик» = pending БЕЗ платежей
   const { rows } = await pool.query(
     `SELECT o.id
-       FROM orders o
-      WHERE o.user_id = $1
-        AND o.status  = 'pending'
-        AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.order_id = o.id)
-      ORDER BY o.created_at DESC
-      LIMIT 1`,
+     FROM orders o
+     WHERE o.user_id = $1
+       AND o.status  = 'pending'
+       AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.order_id = o.id)
+     ORDER BY o.created_at DESC
+     LIMIT 1`,
     [userId]
   );
   if (rows[0]) return rows[0].id;
 
-    // Если нет черновика — создаём новый
+  // Если нет открытого заказа — создаём новый
   const ins = await pool.query(
     `INSERT INTO orders (user_id, status, payment_status, total_amount)
      VALUES ($1, 'pending', 'pending', 0)
@@ -30,11 +30,31 @@ async function findOrCreateOpenOrder(userId) {
   return ins.rows[0].id;
 }
 
+// Функция для выбора платформы и цены
 async function choosePlatformAndPrice(gameId, platformIdNullable) {
+  const { rows: gameExists } = await pool.query(`SELECT id, title FROM games WHERE id = $1`, [
+    gameId
+  ]);
+
+  if (!gameExists[0]) {
+    throw httpError(404, `Game with ID ${gameId} not found`);
+  }
+
+  const { rows: platformLinks } = await pool.query(
+    `SELECT COUNT(*) as count FROM game_platforms WHERE game_id = $1`,
+    [gameId]
+  );
+
+  if (parseInt(platformLinks[0]?.count || 0) === 0) {
+    throw httpError(
+      400,
+      `Game "${gameExists[0].title}" has no platforms configured. Please contact administrator.`
+    );
+  }
   if (platformIdNullable) {
     const { rows } = await pool.query(
       `
-        SELECT p.id AS platform_id, COALESCE(gp.price_override, g.price_final) AS price
+        SELECT p.id AS platform_id, COALESCE(g.price_final) AS price
         FROM game_platforms gp
         JOIN platforms p ON p.id = gp.platform_id
         JOIN games g ON g.id = gp.game_id
@@ -47,15 +67,15 @@ async function choosePlatformAndPrice(gameId, platformIdNullable) {
     return rows[0];
   }
 
-  // если platform_id не передан — берём самую дешёвую платформу
+  // Если platform_id не передан — берём самую дешёвую платформу
   const { rows } = await pool.query(
     `
-      SELECT p.id AS platform_id, COALESCE(gp.price_override, g.price_final) AS price
+      SELECT p.id AS platform_id, COALESCE(g.price_final) AS price
       FROM game_platforms gp
       JOIN platforms p ON p.id = gp.platform_id
       JOIN games g ON g.id = gp.game_id
       WHERE gp.game_id=$1
-      ORDER BY COALESCE(gp.price_override, g.price_final) ASC, p.name ASC
+      ORDER BY COALESCE(g.price_final) ASC, p.name ASC
       LIMIT 1
     `,
     [gameId]
@@ -78,7 +98,6 @@ async function recalcOrderTotal(orderId) {
 }
 
 async function getCartPayload(userId) {
-  // берём последний pending заказ пользователя
   const { rows: ords } = await pool.query(
     `SELECT id FROM orders WHERE user_id=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1`,
     [userId]
@@ -138,9 +157,10 @@ export const CartController = {
       const uid = req.user?.id;
       if (!uid) throw httpError(401, 'unauthorized');
 
-      const gameId = Number(req.body.gameId || req.body.game_id);
-      const platformIdRaw = req.body.platformId ?? req.body.platform_id ?? null;
-      if (!Number.isFinite(gameId)) throw httpError(400, 'gameId is required');
+      const gameId = Number(req.body.gameId || req.body.game_id); // Передаваемые параметры: gameId или game_id
+      const platformIdRaw = req.body.platformId ?? req.body.platform_id ?? null; // Проверка platformId
+
+      if (!Number.isFinite(gameId)) throw httpError(400, 'gameId is required'); // Проверка на наличие gameId
 
       const { platform_id, price } = await choosePlatformAndPrice(
         gameId,
@@ -149,24 +169,24 @@ export const CartController = {
 
       const orderId = await findOrCreateOpenOrder(uid);
 
-      // Проверяем: уже есть такая позиция?
+      // Проверка, есть ли уже такая позиция в корзине
       const { rows: existing } = await pool.query(
         `SELECT id FROM order_items
-       WHERE order_id=$1 AND game_id=$2 AND platform_id=$3
-       LIMIT 1`,
+        WHERE order_id=$1 AND game_id=$2 AND platform_id=$3
+        LIMIT 1`,
         [orderId, gameId, platform_id]
       );
 
       if (existing[0]) {
-        // НИЧЕГО не добавляем — позиция уже в корзине.
+        // Если позиция уже есть в корзине — ничего не добавляем
         const payload = await getCartPayload(uid);
         return res.status(200).json({ ...payload, notice: 'already_in_cart' });
       }
 
-      // Добавляем как единственную позицию этого товара
+      // Добавляем новый товар в корзину
       await pool.query(
         `INSERT INTO order_items (order_id, game_id, platform_id, qty, unit_price)
-       VALUES ($1, $2, $3, 1, $4)`,
+        VALUES ($1, $2, $3, 1, $4)`,
         [orderId, gameId, platform_id, price]
       );
 

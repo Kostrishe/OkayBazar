@@ -33,7 +33,6 @@ async function request(url, opts = {}) {
 /** Получить всех пользователей */
 export async function fetchUsers() {
   const data = await request(`${API}/users`);
-  // поддержка разных форматов ответа: [], {items:[]}, {data:[]}
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.data)) return data.data;
@@ -42,14 +41,26 @@ export async function fetchUsers() {
 
 /** Обновить пользователя (меняем только роль) */
 export async function updateUserRole(id, role) {
-  // чаще всего PUT /users/:id
   return request(`${API}/users/${id}`, {
     method: "PUT",
     body: { role },
   });
 }
 
-/** Получить одного пользователя (для модалки просмотра) */
+/** Получить одного пользователя */
 export async function fetchUser(id) {
   return request(`${API}/users/${id}`);
+}
+
+/** СОЗДАТЬ пользователя (email, full_name, password, role) */
+export async function createUser({ email, full_name, password, role }) {
+  return request(`${API}/users`, {
+    method: "POST",
+    body: { email, full_name, password, role },
+  });
+}
+
+/** УДАЛИТЬ пользователя */
+export async function deleteUser(id) {
+  return request(`${API}/users/${id}`, { method: "DELETE" });
 }

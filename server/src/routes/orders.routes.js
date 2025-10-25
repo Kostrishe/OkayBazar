@@ -6,7 +6,7 @@ import { authRequired, roleRequired } from '../middleware/auth.js';
 const router = Router();
 
 // только свои заказы (текущий пользователь)
-router.get('/my', authRequired, OrdersController.getMyOrders); // 👈 добавили сюда
+router.get('/my', authRequired, OrdersController.getMyOrders);
 
 // user / customer
 router.get('/', authRequired, OrdersController.list);

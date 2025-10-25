@@ -22,7 +22,7 @@ import AdminHomePage from "./pages/admin/AdminHomePage";         // <— доб�
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminGamesPage from "./pages/admin/AdminGamesPage";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
-import AdminTaxonomiesPage from "./pages/admin/AdminTaxonomiesPage";
+import AdminDirectoryPage from "./pages/admin/AdminDirectoryPage";
 
 function Shell() {
   const location = useLocation();
@@ -58,7 +58,7 @@ function Shell() {
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="games" element={<AdminGamesPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
-              <Route path="taxonomies" element={<AdminTaxonomiesPage />} />
+              <Route path="taxonomies" element={<AdminDirectoryPage />} />
             </Route>
           </Route>
 

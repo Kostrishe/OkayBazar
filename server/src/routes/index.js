@@ -19,12 +19,8 @@ api.use('/genres', genres);
 api.use('/platforms', platforms);
 api.use('/reviews', reviews);
 api.use('/media', media);
-
-api.use('/cart', cart);
-
+api.use('/cart', authRequired, cart);
 api.use('/orders', authRequired, orders);
 api.use('/users', authRequired, roleRequired('admin'), users);
-
-api.use('/users', users);
 
 export default api;
