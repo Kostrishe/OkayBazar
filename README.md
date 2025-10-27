@@ -89,13 +89,15 @@ npm run dev
 
 ---
 
-## Done:
+<h2>Done:</h2>
 
-![Главная страница](https://imgur.com/gallery/project-bKgKQGX#WOnwSmi)
-![Каталог игр](https://imgur.com/gallery/project-bKgKQGX#sYKRUA5)
-![Карточка игры](https://imgur.com/gallery/project-bKgKQGX#L8mH9LX)
-![Админ-панель](./screens/admin%20home.png)
-![Управление играми](https://imgur.com/gallery/project-bKgKQGX#lBlv5nw)
+<p align="center">
+  <img src="https://i.imgur.com/WOnwSmi.png" alt="Главная страница" height="1300"><br>
+  <img src="https://i.imgur.com/sYKRUA5.png" alt="Каталог игр" height="900"><br>
+  <img src="https://i.imgur.com/L8mH9LX.png" alt="Карточка игры" height="900">
+  <img src="https://i.imgur.com/085Oxh0.png" alt="Админ-панель" height="850">
+  <img src="https://i.imgur.com/lBlv5nw.png" alt="Управление играми" height="900">
+</p>
 
 ---
 
