@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Activity, Star, ShieldCheck, Truck, Sparkles } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Activity,
+  Star,
+  ShieldCheck,
+  Truck,
+  Sparkles,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Glass, GlassCard, Section } from "../components/ui/Glass";
 import { fetchPopularGames, fetchNewReleases } from "../services/games";
@@ -60,13 +68,20 @@ const REVIEWS = [
     text: "Красивый сайт, всё понятно, хороший саппорт.",
     rating: 5,
   },
-  { user: "Денис", text: "Нормальные цены, часто бывают скидки.", rating: 4 },
+  {
+    user: "Денис",
+    text: "Нормальные цены, часто бывают скидки.",
+    rating: 4,
+  },
 ];
 
 const FALLBACK_IMG =
   "data:image/svg+xml;utf8,<?xml version='1.0' encoding='UTF-8'?><svg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'><rect width='100%' height='100%' fill='rgba(255,255,255,0.1)'/><text x='50%' y='50%' font-size='28' fill='%239AA5B1' text-anchor='middle' font-family='Arial'>Image not available</text></svg>";
 
-/* ----------------------------------- Hero Slider ----------------------------------- */
+/**
+ * Cайдер на главной странице.
+ * Показывает 3 случайные игры из кеша (обновляется раз в неделю).
+ */
 function HeroSlider() {
   const [slides, setSlides] = useState([]);
   const [index, setIndex] = useState(0);
@@ -79,8 +94,7 @@ function HeroSlider() {
       try {
         const s = await getRotatingHeroSlides();
         if (mounted && Array.isArray(s)) setSlides(s);
-      } catch (e) {
-        console.error("Hero load error:", e);
+      } catch {
         if (mounted) setSlides([]);
       }
     })();
@@ -89,10 +103,13 @@ function HeroSlider() {
     };
   }, []);
 
-  // автопрокрутка
+  // автопрокрутка каждые 20 секунд
   useEffect(() => {
     if (!slides.length) return;
-    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), 20000);
+    const t = setInterval(
+      () => setIndex((i) => (i + 1) % slides.length),
+      20000
+    );
     return () => clearInterval(t);
   }, [slides.length]);
 
@@ -118,6 +135,7 @@ function HeroSlider() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5 }}
                 >
+                  {/* фоновое размытое изображение */}
                   <img
                     src={slide.image}
                     alt=""
@@ -126,6 +144,7 @@ function HeroSlider() {
                     onError={() => setImgBroken(true)}
                   />
 
+                  {/* основное изображение */}
                   <img
                     src={slide.image}
                     alt={slide.title ?? "Игра"}
@@ -152,7 +171,10 @@ function HeroSlider() {
               )}
             </AnimatePresence>
 
+            {/* затемнение */}
             <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-black/10 to-transparent" />
+
+            {/* информация об игре */}
             <div className="absolute left-15 bottom-5 z-10 flex flex-col gap-4 max-w-lg">
               <div
                 className="flex items-center justify-center text-white/100 text-[11.5px] uppercase tracking-wide font-medium rounded-full select-none shadow-[0_2px_12px_rgba(255,255,255,0.1)] border border-white/25 backdrop-blur-2xl"
@@ -178,7 +200,7 @@ function HeroSlider() {
                 )}
               </div>
 
-              {/* КНОПКА: ведёт в каталог */}
+              {/* кнопка: ведёт в каталог */}
               <Link
                 to="/catalog"
                 className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg text-sm font-medium text-white transition hover:opacity-95 border"
@@ -194,6 +216,7 @@ function HeroSlider() {
               </Link>
             </div>
 
+            {/* стрелки навигации */}
             {slides.length > 1 && (
               <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between p-3">
                 <button
@@ -221,7 +244,9 @@ function HeroSlider() {
   );
 }
 
-/* ------------------------- Скелетоны под сетки карточек ------------------------- */
+/**
+ * Скелетоны под сетки карточек (пока данные загружаются).
+ */
 function CardsSkeleton({ count = 8 }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -242,7 +267,9 @@ function CardsSkeleton({ count = 8 }) {
   );
 }
 
-/* ---------------------------------- Popular ---------------------------------- */
+/**
+ * Сетка популярных игр с автообновлением цен.
+ */
 function PopularGrid({ onOpen }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
@@ -254,8 +281,7 @@ function PopularGrid({ onOpen }) {
       try {
         const list = await fetchPopularGames(8);
         if (mounted) setItems(list);
-      } catch (e) {
-        console.error(e);
+      } catch {
         setError("Не удалось загрузить популярные игры");
         if (mounted) setItems([]);
       }
@@ -265,6 +291,7 @@ function PopularGrid({ onOpen }) {
     };
   }, []);
 
+  // подписка на обновление цен
   useEffect(() => {
     if (!items || !items.length) return;
     const off = onPricesUpdated((payload) => {
@@ -272,8 +299,10 @@ function PopularGrid({ onOpen }) {
         ? payload.pop.items
         : payload?.pop || [];
       if (!fresh?.length) return;
+
       const idx = new Map(items.map((g, i) => [String(g.id ?? g.slug), i]));
       const updated = [...items];
+
       for (const g of fresh) {
         const key = String(g.id ?? g.slug);
         if (!idx.has(key)) continue;
@@ -281,6 +310,7 @@ function PopularGrid({ onOpen }) {
         const price = Number(g.price ?? g.price_final ?? NaN);
         const base = Number(g.base_price ?? NaN);
         const dp = Number(g.discount_percent ?? 0);
+
         if (Number.isFinite(price))
           updated[i] = {
             ...updated[i],
@@ -325,7 +355,9 @@ function PopularGrid({ onOpen }) {
   );
 }
 
-/* -------------------------------- New Releases -------------------------------- */
+/**
+ * Сетка новых релизов с автообновлением цен.
+ */
 function NewReleases({ onOpen }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
@@ -336,8 +368,7 @@ function NewReleases({ onOpen }) {
       try {
         const list = await fetchNewReleases(4);
         if (mounted) setItems(list);
-      } catch (e) {
-        console.error(e);
+      } catch {
         setError("Не удалось загрузить новинки");
         if (mounted) setItems([]);
       }
@@ -357,12 +388,14 @@ function NewReleases({ onOpen }) {
 
       const idx = new Map(items.map((g, i) => [String(g.id ?? g.slug), i]));
       const updated = [...items];
+
       for (const g of fresh) {
         const key = String(g.id ?? g.slug);
         if (!idx.has(key)) continue;
         const price = Number(g.price ?? g.price_final ?? NaN);
         const base = Number(g.base_price ?? NaN);
         const dp = Number(g.discount_percent ?? 0);
+
         if (Number.isFinite(price))
           updated[idx.get(key)] = {
             ...updated[idx.get(key)],
@@ -404,7 +437,9 @@ function NewReleases({ onOpen }) {
   );
 }
 
-/* ------------------------------- Steam Top Now ------------------------------- */
+/**
+ * Блок "Во что сейчас играет весь Steam?".
+ */
 function SteamTopNow() {
   const max = Math.max(...STEAM_TOP_NOW.map((i) => i.concurrent));
   return (
@@ -458,7 +493,9 @@ function SteamTopNow() {
   );
 }
 
-/* --------------------------------- Promotions --------------------------------- */
+/**
+ * Блок промо-акций.
+ */
 function Promotions() {
   return (
     <Section title="Акции и предложения" className="mt-10" showLink={false}>
@@ -497,7 +534,9 @@ function Promotions() {
   );
 }
 
-/* ------------------------------ Reviews / Why Us ------------------------------ */
+/**
+ * Блок отзывов и преимуществ.
+ */
 function Reviews() {
   return (
     <Section title="Отзывы / доверие" className="mt-10" showLink={false}>
@@ -516,7 +555,7 @@ function Reviews() {
                 />
               ))}
             </div>
-            <p className="mt-3 text-white/85">“{r.text}”</p>
+            <p className="mt-3 text-white/85">"{r.text}"</p>
             <div className="mt-3 text-white/60 text-sm">— {r.user}</div>
           </Glass>
         ))}
@@ -541,6 +580,9 @@ function Reviews() {
   );
 }
 
+/**
+ * Блок "Почему мы?".
+ */
 function WhyUs() {
   const items = [
     {
@@ -574,7 +616,10 @@ function WhyUs() {
   );
 }
 
-/* ----------------------------------- Page ----------------------------------- */
+/**
+ * Главная страница сайта.
+ * Включает героевый слайдер, популярные игры, новинки, промо, отзывы.
+ */
 export default function HomePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalGameId, setModalGameId] = useState(null);
@@ -583,11 +628,13 @@ export default function HomePage() {
     setModalGameId(idOrSlug);
     setModalOpen(true);
   };
+
   const closeGame = () => {
     setModalOpen(false);
     setModalGameId(null);
   };
 
+  // запускаем автообновление цен при монтировании
   useEffect(() => {
     const stop = startPricesPolling({ interval: 10000, limit: 32 });
     return stop;

@@ -6,7 +6,10 @@ function httpError(status, message) {
   return e;
 }
 
-// Функция для поиска или создания открытого заказа
+/**
+ * Функция для поиска или создания открытого заказа (корзины)
+ * Ищу pending заказ без платежей. Если нет — создаю новый
+ */
 async function findOrCreateOpenOrder(userId) {
   const { rows } = await pool.query(
     `SELECT o.id
@@ -18,20 +21,28 @@ async function findOrCreateOpenOrder(userId) {
      LIMIT 1`,
     [userId]
   );
-  if (rows[0]) return rows[0].id;
 
-  // Если нет открытого заказа — создаём новый
+  if (rows[0]) {
+    return rows[0].id;
+  }
+
+  // если нет открытого заказа — создаю новый
   const ins = await pool.query(
     `INSERT INTO orders (user_id, status, payment_status, total_amount)
      VALUES ($1, 'pending', 'pending', 0)
      RETURNING id`,
     [userId]
   );
+
   return ins.rows[0].id;
 }
 
-// Функция для выбора платформы и цены
+/**
+ * Функция для выбора платформы и цены игры
+ * Если платформа указана — проверяю её. Если нет — беру самую дешёвую
+ */
 async function choosePlatformAndPrice(gameId, platformIdNullable) {
+  // проверяю, существует ли игра
   const { rows: gameExists } = await pool.query(`SELECT id, title FROM games WHERE id = $1`, [
     gameId
   ]);
@@ -40,6 +51,7 @@ async function choosePlatformAndPrice(gameId, platformIdNullable) {
     throw httpError(404, `Game with ID ${gameId} not found`);
   }
 
+  // проверяю, есть ли у игры платформы
   const { rows: platformLinks } = await pool.query(
     `SELECT COUNT(*) as count FROM game_platforms WHERE game_id = $1`,
     [gameId]
@@ -51,6 +63,8 @@ async function choosePlatformAndPrice(gameId, platformIdNullable) {
       `Game "${gameExists[0].title}" has no platforms configured. Please contact administrator.`
     );
   }
+
+  // если платформа передана — проверяю её
   if (platformIdNullable) {
     const { rows } = await pool.query(
       `
@@ -63,11 +77,15 @@ async function choosePlatformAndPrice(gameId, platformIdNullable) {
       `,
       [gameId, platformIdNullable]
     );
-    if (!rows[0]) throw httpError(400, 'incorrect game/platform pair');
+
+    if (!rows[0]) {
+      throw httpError(400, 'incorrect game/platform pair');
+    }
+
     return rows[0];
   }
 
-  // Если platform_id не передан — берём самую дешёвую платформу
+  // если platform_id не передан — беру самую дешёвую платформу
   const { rows } = await pool.query(
     `
       SELECT p.id AS platform_id, COALESCE(g.price_final) AS price
@@ -80,29 +98,47 @@ async function choosePlatformAndPrice(gameId, platformIdNullable) {
     `,
     [gameId]
   );
-  if (!rows[0]) throw httpError(400, 'no platforms configured for this game');
+
+  if (!rows[0]) {
+    throw httpError(400, 'no platforms configured for this game');
+  }
+
   return rows[0];
 }
 
+/**
+ * Функция для пересчёта общей суммы заказа.
+ * Складываю все subtotal из order_items и обновляю total_amount в orders
+ */
 async function recalcOrderTotal(orderId) {
   const { rows } = await pool.query(
     `SELECT COALESCE(SUM(subtotal),0)::numeric(10,2) AS total FROM order_items WHERE order_id=$1`,
     [orderId]
   );
+
   const total = rows[0]?.total ?? 0;
+
   await pool.query(`UPDATE orders SET total_amount=$2, updated_at=now() WHERE id=$1`, [
     orderId,
     total
   ]);
+
   return total;
 }
 
+/**
+ * Функция для получения данных корзины.
+ * Возвращаю items, count и total
+ */
 async function getCartPayload(userId) {
   const { rows: ords } = await pool.query(
     `SELECT id FROM orders WHERE user_id=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1`,
     [userId]
   );
-  if (!ords[0]) return { items: [], count: 0, total: 0 };
+
+  if (!ords[0]) {
+    return { items: [], count: 0, total: 0 };
+  }
 
   const orderId = ords[0].id;
 
@@ -139,11 +175,17 @@ async function getCartPayload(userId) {
 }
 
 export const CartController = {
-  // GET /api/cart
+  /**
+   * GET /api/cart
+   * Возвращает текущую корзину пользователя (items, count, total)
+   */
   async get(req, res, next) {
     try {
       const uid = req.user?.id;
-      if (!uid) throw httpError(401, 'unauthorized');
+      if (!uid) {
+        throw httpError(401, 'unauthorized');
+      }
+
       const payload = await getCartPayload(uid);
       res.json(payload);
     } catch (e) {
@@ -151,16 +193,24 @@ export const CartController = {
     }
   },
 
-  // POST /api/cart  { gameId, quantity=1, platformId? }
+  /**
+   * POST /api/cart
+   * Добавляет товар в корзину. Принимает gameId, quantity, platformId.
+   * Если позиция уже есть — возвращаю notice: 'already_in_cart'
+   */
   async add(req, res, next) {
     try {
       const uid = req.user?.id;
-      if (!uid) throw httpError(401, 'unauthorized');
+      if (!uid) {
+        throw httpError(401, 'unauthorized');
+      }
 
-      const gameId = Number(req.body.gameId || req.body.game_id); // Передаваемые параметры: gameId или game_id
-      const platformIdRaw = req.body.platformId ?? req.body.platform_id ?? null; // Проверка platformId
+      const gameId = Number(req.body.gameId || req.body.game_id);
+      const platformIdRaw = req.body.platformId ?? req.body.platform_id ?? null;
 
-      if (!Number.isFinite(gameId)) throw httpError(400, 'gameId is required'); // Проверка на наличие gameId
+      if (!Number.isFinite(gameId)) {
+        throw httpError(400, 'gameId is required');
+      }
 
       const { platform_id, price } = await choosePlatformAndPrice(
         gameId,
@@ -169,7 +219,7 @@ export const CartController = {
 
       const orderId = await findOrCreateOpenOrder(uid);
 
-      // Проверка, есть ли уже такая позиция в корзине
+      // проверяю, есть ли уже такая позиция в корзине
       const { rows: existing } = await pool.query(
         `SELECT id FROM order_items
         WHERE order_id=$1 AND game_id=$2 AND platform_id=$3
@@ -178,12 +228,12 @@ export const CartController = {
       );
 
       if (existing[0]) {
-        // Если позиция уже есть в корзине — ничего не добавляем
+        // если позиция уже есть в корзине — ничего не добавляю
         const payload = await getCartPayload(uid);
         return res.status(200).json({ ...payload, notice: 'already_in_cart' });
       }
 
-      // Добавляем новый товар в корзину
+      // добавляю новый товар в корзину
       await pool.query(
         `INSERT INTO order_items (order_id, game_id, platform_id, qty, unit_price)
         VALUES ($1, $2, $3, 1, $4)`,
@@ -199,16 +249,23 @@ export const CartController = {
     }
   },
 
-  // DELETE /api/cart/:itemId
+  /**
+   * DELETE /api/cart/:itemId
+   * Удаляет одну позицию из корзины по id элемента
+   */
   async remove(req, res, next) {
     try {
       const uid = req.user?.id;
-      if (!uid) throw httpError(401, 'unauthorized');
+      if (!uid) {
+        throw httpError(401, 'unauthorized');
+      }
 
       const itemId = Number(req.params.itemId);
-      if (!Number.isFinite(itemId)) throw httpError(400, 'bad itemId');
+      if (!Number.isFinite(itemId)) {
+        throw httpError(400, 'bad itemId');
+      }
 
-      // удаляем только из своего «открытого» заказа
+      // удаляю только из своего «открытого» заказа
       const { rows: own } = await pool.query(
         `
           DELETE FROM order_items oi
@@ -218,7 +275,10 @@ export const CartController = {
         `,
         [itemId, uid]
       );
-      if (own[0]) await recalcOrderTotal(own[0].order_id);
+
+      if (own[0]) {
+        await recalcOrderTotal(own[0].order_id);
+      }
 
       const payload = await getCartPayload(uid);
       res.json(payload);
@@ -227,20 +287,27 @@ export const CartController = {
     }
   },
 
-  // DELETE /api/cart
+  /**
+   * DELETE /api/cart
+   * Очищает всю корзину (удаляет все позиции из pending заказа)
+   */
   async clear(req, res, next) {
     try {
       const uid = req.user?.id;
-      if (!uid) throw httpError(401, 'unauthorized');
+      if (!uid) {
+        throw httpError(401, 'unauthorized');
+      }
 
       const { rows: ords } = await pool.query(
         `SELECT id FROM orders WHERE user_id=$1 AND status='pending' ORDER BY created_at DESC LIMIT 1`,
         [uid]
       );
+
       if (ords[0]) {
         await pool.query(`DELETE FROM order_items WHERE order_id=$1`, [ords[0].id]);
         await recalcOrderTotal(ords[0].id);
       }
+
       const payload = await getCartPayload(uid);
       res.json(payload);
     } catch (e) {

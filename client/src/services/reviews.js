@@ -1,7 +1,8 @@
-// src/services/reviews.js
 import { apiFetch } from "../lib/api";
 
-/* ---------- helpers ---------- */
+/**
+ * Вспомогательная функция для извлечения массива из разных форматов ответа.
+ */
 function pickArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (payload?.items && Array.isArray(payload.items)) return payload.items;
@@ -25,10 +26,15 @@ function readAllLocalStorage() {
       const k = localStorage.key(i);
       out[k] = localStorage.getItem(k);
     }
-  } catch {}
+  } catch {
+    // игнорируем ошибки доступа к localStorage
+  }
   return out;
 }
 
+/**
+ * Декодирование JWT payload из base64url в JSON.
+ */
 function b64urlToJson(b64) {
   try {
     const s = decodeURIComponent(
@@ -43,6 +49,9 @@ function b64urlToJson(b64) {
   }
 }
 
+/**
+ * Извлечь user_id из любого объекта (поддерживает разные форматы).
+ */
 function extractIdFromAny(obj) {
   if (!obj || typeof obj !== "object") return null;
   const candidates = [
@@ -58,7 +67,9 @@ function extractIdFromAny(obj) {
   return candidates.find((v) => v != null) ?? null;
 }
 
-/** Попытаться получить токен из любых часто-используемых ключей */
+/**
+ * Попытаться получить токен из любых часто-используемых ключей localStorage.
+ */
 function getAnyToken() {
   const keys = [
     "token",
@@ -75,15 +86,21 @@ function getAnyToken() {
   return "";
 }
 
-/** Извлечь user_id: /auth/me → JWT (из любых ключей) → JSON-профили в localStorage → window */
+/**
+ * Извлечь user_id из разных источников:
+ * 1) /auth/me (если apiFetch подставит Authorization — идеально)
+ * 2) JWT из любых ключей localStorage
+ * 3) Любые JSON-профили в localStorage
+ * 4) window.* (если приложение что-то клало глобально)
+ */
 async function resolveUserId() {
-  // 1) /auth/me (если apiFetch подставит Authorization — идеально)
+  // 1) /auth/me
   try {
     const me = await apiFetch(`/auth/me`);
     const id = extractIdFromAny(me);
     if (id != null) return Number(id) || id;
   } catch {
-    /* игнор */
+    // игнорируем ошибку
   }
 
   // 2) JWT из любых ключей localStorage
@@ -97,7 +114,7 @@ async function resolveUserId() {
 
   // 3) Любые JSON-профили в localStorage
   const all = readAllLocalStorage();
-  for (const [k, v] of Object.entries(all)) {
+  for (const [, v] of Object.entries(all)) {
     // пропустим длинные бинарные и счётчики
     if (!v || v.length > 5000) continue;
     try {
@@ -105,7 +122,7 @@ async function resolveUserId() {
       const id = extractIdFromAny(j);
       if (id != null) return Number(id) || id;
     } catch {
-      /* не JSON */
+      // не JSON
     }
   }
 
@@ -117,12 +134,17 @@ async function resolveUserId() {
       extractIdFromAny(g.user) ||
       extractIdFromAny(g.currentUser);
     if (id != null) return Number(id) || id;
-  } catch {}
+  } catch {
+    // игнорируем ошибку
+  }
 
   return null;
 }
 
-/* ---------- API ---------- */
+/**
+ * Получить отзывы для игры по game_id.
+ * Пробует несколько вариантов эндпоинтов.
+ */
 export async function fetchReviewsByGame(gameId) {
   const gid = Number(gameId);
   const attempts = [
@@ -134,11 +156,14 @@ export async function fetchReviewsByGame(gameId) {
     try {
       const resp = await apiFetch(url);
       let arr = pickArray(resp);
+      // если в ответе есть game_id, фильтруем только по нужной игре
       if (arr.length && arr.some((r) => r?.game_id != null)) {
         arr = arr.filter((r) => String(r.game_id) === String(gid || gameId));
       }
       return arr;
-    } catch {}
+    } catch {
+      // пробуем следующий эндпоинт
+    }
   }
   return [];
 }
@@ -146,6 +171,10 @@ export async function fetchReviewsByGame(gameId) {
 /**
  * Создать отзыв.
  * Отправляем все алиасы полей (snake + camel), чтобы совпасть с ожиданиями бэка.
+ * @param {object} params - Параметры отзыва
+ * @param {number} params.game_id - ID игры
+ * @param {number} params.rating - Оценка (1-5)
+ * @param {string} params.body - Текст отзыва
  */
 export async function createReview({ game_id, rating, body }) {
   const gid = Number(game_id);

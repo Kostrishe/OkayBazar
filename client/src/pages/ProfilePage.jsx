@@ -20,16 +20,17 @@ import {
 import { getOrder } from "../services/orders";
 import { logout } from "../services/auth";
 
+
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
 
-  /* -------- Профиль -------- */
+  // профиль
   const [form, setForm] = useState({ full_name: "", email: "" });
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
-  /* -------- Смена пароля -------- */
+  // смена пароля
   const [pwOpen, setPwOpen] = useState(false);
   const [pwCurr, setPwCurr] = useState("");
   const [pwNew, setPwNew] = useState("");
@@ -37,19 +38,24 @@ export default function ProfilePage() {
   const [pwLoading, setPwLoading] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
 
-  /* -------- Заказы -------- */
+  // заказы
   const [orders, setOrders] = useState(null);
   const [ordersError, setOrdersError] = useState("");
   const [open, setOpen] = useState({});
   const [visibleCount, setVisibleCount] = useState(5);
 
-  // --- UI helpers ---
+  /**
+   * Вспомогательный компонент для отображения цены в рублях.
+   */
   const Rub = ({ value = 0 }) => (
     <span className="tabular-nums">
       {Number(value).toLocaleString("ru-RU")} ₽
     </span>
   );
 
+  /**
+   * Преобразование статуса в читаемый текст.
+   */
   const getStatusText = (status) => {
     const map = {
       pending: "В обработке",
@@ -62,6 +68,9 @@ export default function ProfilePage() {
     return map[status] || status;
   };
 
+  /**
+   * Цвета для бейджей статусов.
+   */
   const getStatusColor = (status) => {
     const colors = {
       pending: "bg-yellow-500/15 text-yellow-300 border-yellow-400/30",
@@ -74,6 +83,9 @@ export default function ProfilePage() {
     return colors[status] || "bg-gray-500/15 text-gray-300 border-gray-400/30";
   };
 
+  /**
+   * Бейдж статуса с иконкой.
+   */
   const StatusBadge = ({ status }) => (
     <span
       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(
@@ -89,12 +101,16 @@ export default function ProfilePage() {
     </span>
   );
 
+  /**
+   * Чип для отображения заметок.
+   */
   const NoteChip = ({ note }) => (
     <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 border border-white/20 text-white/80">
       {note || "—"}
     </span>
   );
 
+  // загрузка профиля и заказов при монтировании
   useEffect(() => {
     // профиль
     (async () => {
@@ -102,8 +118,8 @@ export default function ProfilePage() {
         const me = await getProfile();
         setForm({ full_name: me.full_name || "", email: me.email || "" });
         if (setUser) setUser(me);
-      } catch (e) {
-        console.error(e);
+      } catch {
+        // тихо игнорируем ошибку
       }
     })();
 
@@ -117,6 +133,7 @@ export default function ProfilePage() {
           ? list
           : [];
 
+        // обогащаем каждый заказ детальной информацией
         const enriched = await Promise.all(
           base.map(async (o) => {
             try {
@@ -143,14 +160,16 @@ export default function ProfilePage() {
 
         setOrders(enriched);
         setVisibleCount(5);
-      } catch (e) {
-        console.error(e);
+      } catch {
         setOrders([]);
         setOrdersError("Не удалось загрузить заказы");
       }
     })();
   }, [setUser]);
 
+  /**
+   * Сохранение изменений профиля.
+   */
   async function onSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -162,32 +181,39 @@ export default function ProfilePage() {
       });
       setNotice("Профиль обновлён");
       if (setUser) setUser(updated);
-    } catch (e) {
-      console.error(e);
+    } catch {
       setNotice("Не удалось сохранить. Проверьте данные.");
     } finally {
       setSaving(false);
     }
   }
 
+  /**
+   * Смена пароля с последующим разлогином.
+   */
   async function onChangePassword() {
     setPwMsg("");
     if (!pwCurr || !pwNew) return setPwMsg("Заполните поля");
     if (pwNew !== pwNew2) return setPwMsg("Новые пароли не совпадают");
+
     setPwLoading(true);
     try {
       await changePassword({ currentPassword: pwCurr, newPassword: pwNew });
 
+      // разлогиниваем пользователя
       try {
         await logout();
-      } catch {}
+      } catch {
+        // игнорируем ошибку logout
+      }
       if (setUser) setUser(null);
       try {
         localStorage.removeItem("token");
-      } catch {}
+      } catch {
+        // игнорируем ошибку localStorage
+      }
       navigate("/login", { replace: true });
-    } catch (e) {
-      console.error(e);
+    } catch {
       setPwMsg("Не удалось сменить пароль");
     } finally {
       setPwLoading(false);
@@ -254,6 +280,7 @@ export default function ProfilePage() {
               </button>
             </div>
           </div>
+
           {user?.role === "admin" && (
             <div className="mt-4">
               <Link
@@ -298,6 +325,7 @@ export default function ProfilePage() {
                     key={o.id ?? i}
                     className="mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-lg"
                   >
+                    {/* Шапка заказа */}
                     <div className="flex items-center justify-between px-4 py-3 hover:bg-white/10 transition-colors rounded-t-2xl">
                       <div className="flex items-center gap-4">
                         <button
@@ -327,6 +355,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
+                    {/* Детали заказа */}
                     {isOpen && (
                       <div className="p-4 border-t border-white/10 bg-white/5">
                         {Array.isArray(o._items) && o._items.length > 0 ? (

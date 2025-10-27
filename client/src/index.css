@@ -1,18 +1,19 @@
-/* Tailwind v4 подключается импортом */
 @import "tailwindcss";
 
-/* немного базовых глобальных стилей, можно убрать */
+/* Базовые глобальные стили */
 html,
 body,
 #root {
   height: 100%;
 }
+
 body {
   background: #0b0f14;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Стиль для стеклянных кнопок */
 .btn-glass {
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: linear-gradient(
@@ -25,9 +26,11 @@ body {
     0 8px 30px rgba(124, 77, 255, 0.1);
   transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
+
 .btn-glass:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
 .btn-glass:active {
   transform: scale(0.98);
 }

@@ -1,4 +1,3 @@
-// src/components/GameModal.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   X,
@@ -16,27 +15,37 @@ import { fetchGame, addToCart, fetchCart } from "../services/games";
 import { fetchReviewsByGame, createReview } from "../services/reviews";
 import { bus } from "../lib/events";
 
+/**
+ * Вспомогательная обёртка для цены в рублях (с неразрывным пробелом).
+ */
 function Rub({ children }) {
   return <span className="whitespace-nowrap">{children}</span>;
 }
 
-// добавляем версию в ссылку (для сброса кеша браузера)
+/**
+ * Добавляем версию к URL картинки, чтобы сбросить кеш браузера при изменении.
+ */
 function withVer(url, v) {
   if (!url) return url;
   if (!v) return url;
   return url + (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(v);
 }
 
+/**
+ * Модальное окно с подробной информацией об игре.
+ * Показывает обложку, скриншоты, описание, цену, платформы, отзывы.
+ * Поддерживает добавление в корзину и оставление отзыва.
+ */
 export default function GameModal({ gameIdOrSlug, open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [game, setGame] = useState(null);
   const [platformIdx, setPlatformIdx] = useState(0);
   const [slide, setSlide] = useState(0);
 
-  // версия картинок: меняем -> браузер перезагрузит изображения
+  // версия картинок: меняем → браузер перезагрузит изображения
   const [imgVersion, setImgVersion] = useState(0);
 
-  // корзина
+  // состояние корзины
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -47,6 +56,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // закрытие модалки по Escape
   const onEsc = useCallback(
     (e) => {
       if (e.key === "Escape") onClose?.();
@@ -60,7 +70,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
     return () => window.removeEventListener("keydown", onEsc);
   }, [open, onEsc]);
 
-  // загрузка игры
+  // загрузка игры при открытии модалки
   useEffect(() => {
     if (!open || !gameIdOrSlug) return;
     let alive = true;
@@ -80,8 +90,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
         const g = await fetchGame(gameIdOrSlug);
         if (alive) setGame(g);
       } catch (e) {
-        console.error(e);
-        setErrorMsg("Не удалось загрузить игру");
+        if (alive) setErrorMsg("Не удалось загрузить игру");
       } finally {
         if (alive) setLoading(false);
       }
@@ -92,10 +101,11 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
     };
   }, [open, gameIdOrSlug]);
 
-  // 🔄 автообновление данных игры (цены + обложка + скриншоты)
+  // автообновление данных игры (цены + обложка + скриншоты) каждые ~8 секунд
   useEffect(() => {
     if (!open || !game?.id) return;
     let stop = false;
+
     const interval = setInterval(async () => {
       if (stop) return;
       try {
@@ -136,9 +146,9 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
           };
         });
       } catch (e) {
-        console.error(e);
+        // тихо игнорируем ошибки обновления
       }
-    }, 8000); // каждые ~8 секунд
+    }, 8000);
 
     return () => {
       stop = true;
@@ -146,7 +156,9 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
     };
   }, [open, game?.id, gameIdOrSlug]);
 
-  // загрузка отзывов
+  /**
+   * Загрузка отзывов для игры.
+   */
   async function loadReviews(gameId) {
     if (!gameId) return;
     setRevLoading(true);
@@ -155,7 +167,6 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
       const list = await fetchReviewsByGame(gameId);
       setReviews(Array.isArray(list) ? list : []);
     } catch (e) {
-      console.error(e);
       setErrorMsg("Не удалось загрузить отзывы");
     } finally {
       setRevLoading(false);
@@ -185,7 +196,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
     });
   }, [game?.screenshots, imgVersion]);
 
-  /* ========= ЦЕНЫ/СКИДКИ: единые для всех платформ ========= */
+  // цены/скидки: единые для всех платформ
   const dp = Number(game?.discount_percent ?? 0);
 
   const basePrice = useMemo(() => {
@@ -206,27 +217,34 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
   const fmt = (n) =>
     n == null ? "" : Math.round(Number(n)).toLocaleString("ru-RU") + " ₽";
 
-  // корзина
+  /**
+   * Добавление игры в корзину.
+   */
   async function handleAdd() {
     if (!game?.id) return;
     try {
       setAdding(true);
       const updated = await addToCart(game.id, 1);
       const payload = updated?.items ? updated : await fetchCart();
+
+      // эмитим событие для обновления счётчика в хедере
       if (bus?.emit) bus.emit("cart:updated", payload);
       window.dispatchEvent?.(
         new CustomEvent("cart:updated", { detail: payload })
       );
+
       setAdded(true);
       setTimeout(() => setAdded(false), 1200);
     } catch (e) {
-      console.error(e);
+      // тихо игнорируем ошибку, можно показать уведомление
     } finally {
       setAdding(false);
     }
   }
 
-  // форма: отправка отзыва
+  /**
+   * Отправка отзыва.
+   */
   async function submitReview(e) {
     e.preventDefault();
     if (!game?.id) return;
@@ -273,11 +291,14 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
       role="dialog"
       aria-modal="true"
     >
+      {/* Оверлей */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
+
       <div className="relative">
+        {/* Кнопка закрытия */}
         <button
           type="button"
           onClick={(e) => {
@@ -311,7 +332,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-              {/* левая колонка */}
+              {/* Левая колонка: обложка, инфо, цена */}
               <div className="p-5 border-r border-white/15">
                 <GlassCard className="rounded-2xl overflow-hidden">
                   <div className="aspect-[16/10] w-full">
@@ -333,7 +354,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                   {game.title}
                 </h1>
 
-                {/* мета */}
+                {/* Мета-информация */}
                 <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-white/80">
                   <div>
                     <span className="text-white/60">Разработчик:</span>{" "}
@@ -353,7 +374,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                   </div>
                 </div>
 
-                {/* платформы (только выбор, на цену не влияет) */}
+                {/* Платформы (только выбор, на цену не влияет) */}
                 {!!platforms.length && (
                   <div className="mt-4">
                     <div className="text-white/80 text-sm mb-2">Платформа</div>
@@ -376,7 +397,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                   </div>
                 )}
 
-                {/* цена + корзина */}
+                {/* Цена + корзина */}
                 <div className="mt-5 flex items-end justify-between">
                   <div className="flex items-baseline gap-3">
                     {hasDiscount && basePrice && (
@@ -430,9 +451,9 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                 </div>
               </div>
 
-              {/* правая колонка */}
+              {/* Правая колонка: слайдер скриншотов + отзывы */}
               <div className="p-5">
-                {/* слайдер */}
+                {/* Слайдер */}
                 <div className="relative">
                   <GlassCard className="rounded-2xl overflow-hidden">
                     <div className="relative aspect-[16/9]">
@@ -479,7 +500,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                     </div>
                   </GlassCard>
 
-                  {/* мини-превью */}
+                  {/* Мини-превью */}
                   {!!screenshots.length && (
                     <div className="mt-3 grid grid-cols-5 gap-2">
                       {screenshots.map((s, i) => (
@@ -509,11 +530,10 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                 <div className="mt-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-white">Отзывы</h3>
-                    <div className="text-white/60 text-sm">
+                    <div className="text-white/60 text -sm">
                       {reviews.length} шт.
                     </div>
                   </div>
-
                   {revLoading ? (
                     <div className="text-white/70 mt-3 text-sm">
                       Загружаем отзывы…
@@ -570,7 +590,7 @@ export default function GameModal({ gameIdOrSlug, open, onClose }) {
                     </div>
                   )}
 
-                  {/* форма отзыва */}
+                  {/* Форма отзыва */}
                   <form onSubmit={submitReview} className="mt-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <span className="text-white/80 text-sm">

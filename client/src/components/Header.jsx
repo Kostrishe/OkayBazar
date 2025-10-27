@@ -16,11 +16,14 @@ import logo from "../assets/OkayBazar.png";
 import { fetchCart, removeFromCart, clearCart } from "../services/games";
 import { useAuth } from "../auth/useAuth";
 
-/* ---------------- MiniCart — светлый, как хэдер ---------------- */
+/**
+ * MiniCart — всплывающая корзина со списком товаров.
+ */
 function MiniCart({ open, onClose }) {
   const ref = useRef(null);
   const [payload, setPayload] = useState({ items: [], count: 0, total: 0 });
 
+  // закрытие по клику вне корзины
   useEffect(() => {
     function onDoc(e) {
       if (open && ref.current && !ref.current.contains(e.target)) onClose?.();
@@ -29,8 +32,10 @@ function MiniCart({ open, onClose }) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, onClose]);
 
+  // загрузка корзины + подписка на события обновления
   useEffect(() => {
     let stopped = false;
+
     (async () => {
       try {
         const data = await fetchCart();
@@ -42,6 +47,7 @@ function MiniCart({ open, onClose }) {
 
     const onCartUpdated = (e) => e?.detail && setPayload(e.detail);
     window.addEventListener("cart:updated", onCartUpdated);
+
     return () => {
       stopped = true;
       window.removeEventListener("cart:updated", onCartUpdated);
@@ -62,8 +68,10 @@ function MiniCart({ open, onClose }) {
             <motion.div
               className="w-[360px] max-w-[92vw] overflow-hidden rounded-2xl border border-white/30 text-white"
               style={{
-                background: "linear-gradient(145deg, rgba(36,40,45,0.95) 0%, rgba(46,50,55,0.85) 100%)",
-                boxShadow: "0 0 20px rgba(0,0,0,0.45), inset 0 0 20px rgba(255,255,255,0.02)",
+                background:
+                  "linear-gradient(145deg, rgba(36,40,45,0.95) 0%, rgba(46,50,55,0.85) 100%)",
+                boxShadow:
+                  "0 0 20px rgba(0,0,0,0.45), inset 0 0 20px rgba(255,255,255,0.02)",
                 backdropFilter: "blur(6px)",
               }}
               initial={{ filter: "blur(8px)", opacity: 0.7 }}
@@ -140,8 +148,7 @@ function MiniCart({ open, onClose }) {
                                       })
                                     );
                                   } catch (e) {
-                                    console.error(e);
-                                    alert("Не удалось удалить товар");
+                                    // тихо игнорируем ошибку
                                   }
                                 }}
                                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/30 text-white/80"
@@ -193,8 +200,7 @@ function MiniCart({ open, onClose }) {
                             new CustomEvent("cart:updated", { detail: next })
                           );
                         } catch (e) {
-                          console.error(e);
-                          alert("Не удалось очистить корзину");
+                          // тихо игнорируем ошибку
                         }
                       }}
                       className="rounded-xl px-4 py-2 text-sm bg-white/5 hover:bg-white/10 border border-white/30 text-white/80"
@@ -212,7 +218,7 @@ function MiniCart({ open, onClose }) {
   );
 }
 
-/* Маленький хелпер для пункта меню с подчёркиванием активного роута */
+// NavItem — пункт меню с подчёркиванием активного роута
 function NavItem({ to, children }) {
   return (
     <NavLink
@@ -238,18 +244,17 @@ function NavItem({ to, children }) {
   );
 }
 
-/* ---------------- Header ---------------- */
 export default function Header() {
   const { user, ready, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(0);
 
+  // Обновление счётчика корзины
   async function refreshCounter() {
     try {
       const p = await fetchCart();
       setCount(Number(p?.count || 0));
     } catch (e) {
-      console.warn("cart counter failed:", e);
       setCount(0);
     }
   }
@@ -266,13 +271,14 @@ export default function Header() {
 
   return (
     <>
-      {/* Фиксированный хэдер */}
+      {/* Фиксированный хедер */}
       <header
         className="fixed inset-x-0 top-0 z-[100]"
         style={{ transform: "translateZ(0)" }}
       >
         <Glass className="my-4 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="flex h-16 items-center justify-between">
+            {/* Логотип */}
             <Link to="/" className="flex items-center gap-3">
               <img
                 src={logo}
@@ -288,11 +294,13 @@ export default function Header() {
               </span>
             </Link>
 
+            {/* Навигация */}
             <nav className="hidden md:flex items-center gap-6">
               <NavItem to="/">Главная</NavItem>
               <NavItem to="/catalog">Каталог</NavItem>
             </nav>
 
+            {/* Поиск, корзина, авторизация */}
             <div className="flex items-center gap-3 w-1/2 max-w-lg relative">
               <div className="relative flex-1">
                 <input
@@ -302,6 +310,7 @@ export default function Header() {
                 <Search className="w-4 h-4 text-white/60 absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
 
+              {/* Корзина */}
               <button
                 type="button"
                 className="relative inline-flex items-center justify-center rounded-xl p-2 bg-white/15 text-white border border-white/30 transition hover:bg-white/20 cursor-pointer"
@@ -319,6 +328,7 @@ export default function Header() {
                 )}
               </button>
 
+              {/* Авторизация */}
               {!ready ? (
                 <div className="w-[130px] h-9 rounded-xl bg-white/15 border border-white/30 animate-pulse" />
               ) : user ? (
@@ -360,7 +370,7 @@ export default function Header() {
         </Glass>
       </header>
 
-      {/* Спейсер под фиксированный хэдер */}
+      {/* Спейсер под фиксированный хедер */}
       <div className="h-24" />
     </>
   );

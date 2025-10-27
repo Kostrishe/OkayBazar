@@ -1,10 +1,12 @@
-// src/components/ProductCard.jsx
 import React, { useMemo, useState } from "react";
 import { ImageOff } from "lucide-react";
 import { GlassCard } from "./ui/Glass";
 import THEME from "../styles/theme";
 import { addToCart, fetchCart } from "../services/games";
 
+/**
+ * Форматирование цены в рублях (целые, без копеек)
+ */
 function formatRubNoCoins(v) {
   if (v == null || v === "") return "";
   const n = Number(String(v).replace(",", "."));
@@ -22,12 +24,12 @@ export default function ProductCard({
   id,
   name = "Без названия",
   publisher = "",
-  price,            // финальная цена
-  oldPrice,         // старая цена (опционально)
-  discountPercent = 0, // число, например 15
+  price,
+  oldPrice,
+  discountPercent = 0,
   image = "",
   href = "#",
-  onOpen,           // <- коллбек для открытия модалки
+  onOpen,
 }) {
   const [added, setAdded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,10 +41,14 @@ export default function ProductCard({
   );
 
   const formattedOldPrice = useMemo(() => {
-    if (oldPrice == null || oldPrice === "" || Number(discountPercent) <= 0) return "";
+    if (oldPrice == null || oldPrice === "" || Number(discountPercent) <= 0)
+      return "";
     return typeof oldPrice === "string" ? oldPrice : formatRubNoCoins(oldPrice);
   }, [oldPrice, discountPercent]);
 
+  /**
+   * Добавление в корзину
+   */
   async function handleAdd(e) {
     try {
       e?.preventDefault?.();
@@ -52,20 +58,23 @@ export default function ProductCard({
       const updated = await addToCart(id, 1);
       const payload = updated?.items ? updated : await fetchCart();
 
-      window.dispatchEvent(new CustomEvent("cart:updated", { detail: payload }));
+      window.dispatchEvent(
+        new CustomEvent("cart:updated", { detail: payload })
+      );
 
       setAdded(true);
       setTimeout(() => setAdded(false), 1200);
     } catch (e) {
-      console.error(e);
-      alert("Не удалось добавить в корзину");
+        console.error("Ошибка добавления в корзину:", e);
     } finally {
       setLoading(false);
     }
   }
 
+  /**
+   * Открытие модалки по клику на карточку
+   */
   function handleOpen(e) {
-    // Открытие модалки по клику на карточку
     e?.preventDefault?.();
     if (typeof onOpen === "function") onOpen();
   }
@@ -85,7 +94,7 @@ export default function ProductCard({
       aria-label={name}
     >
       <GlassCard>
-        {/* Кликабельная зона карточки — открываем модалку */}
+        {/* Кликабельная зона карточки */}
         <a
           href={href}
           onClick={handleOpen}
@@ -95,7 +104,7 @@ export default function ProductCard({
           aria-label={`Открыть игру: ${name}`}
           rel="nofollow"
         >
-          {/* мягкая тень под карточкой при ховере */}
+          {/* Мягкая тень под карточкой при ховере */}
           <div
             className="pointer-events-none absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-3
                        h-4 w-[78%] rounded-full bg-black/55 blur-2xl opacity-0
@@ -186,8 +195,8 @@ export default function ProductCard({
           </div>
         </a>
 
+        {/* Текстовая часть */}
         <div className="p-3 select-none">
-          {/* Текстовая часть */}
           <div className="flex flex-col h-[140px]">
             <h3
               className="text-white text-[20px] font-semibold leading-[1.25] line-clamp-2"
@@ -217,13 +226,13 @@ export default function ProductCard({
               )}
               {formattedOldPrice && (
                 <span className="text-white/55 line-through text-[13px] leading-[1.3]">
-                {formattedOldPrice}
-              </span>
+                  {formattedOldPrice}
+                </span>
               )}
             </div>
           </div>
 
-          {/* Кнопка */}
+          {/* Кнопка "В корзину" */}
           <button
             type="button"
             onClick={handleAdd}

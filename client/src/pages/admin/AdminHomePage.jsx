@@ -1,4 +1,3 @@
-// src/pages/admin/AdminHomePage.jsx
 import React, { useEffect, useState } from "react";
 import { Glass } from "../../components/ui/Glass";
 import {
@@ -19,13 +18,15 @@ import {
   getDbTables,
 } from "../../services/admin";
 
-/* ---- Карточка статистики ---- */
+/* 
+  Карточка статистики
+ */
+// eslint-disable-next-line no-unused-vars
 function StatCard({ title, icon: IconComponent, value, loading, error }) {
   return (
     <Glass className="p-5">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-          {/* было: <Icon ... /> */}
           <IconComponent className="opacity-90" />
         </div>
         <div className="flex flex-col">
@@ -43,8 +44,10 @@ function StatCard({ title, icon: IconComponent, value, loading, error }) {
   );
 }
 
-/* ---- Плитка Launchpad ---- */
-// было: function Tile({ icon: Icon, ... })
+/**
+ * Плитка Launchpad
+ */
+// eslint-disable-next-line no-unused-vars
 function Tile({ icon: IconComponent, title, subtitle, onClick, disabled }) {
   return (
     <button
@@ -58,7 +61,6 @@ function Tile({ icon: IconComponent, title, subtitle, onClick, disabled }) {
     >
       <div className="flex items-center gap-4">
         <div className="h-12 w-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-          {/* было: <Icon ... /> */}
           <IconComponent className="opacity-90" />
         </div>
         <div className="min-w-0">
@@ -72,14 +74,15 @@ function Tile({ icon: IconComponent, title, subtitle, onClick, disabled }) {
   );
 }
 
-/* ---- Плитка-инфо ---- */
-// было: function InfoTile({ icon: Icon, ... })
+/**
+ * Плитка-инфо
+ */
+// eslint-disable-next-line no-unused-vars
 function InfoTile({ icon: IconComponent, title, value, hint }) {
   return (
     <div className="rounded-2xl border border-white/20 bg-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] p-4">
       <div className="flex items-center gap-4">
         <div className="h-12 w-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-          {/* было: <Icon ... /> */}
           <IconComponent className="opacity-90" />
         </div>
         <div className="min-w-0">
@@ -94,6 +97,9 @@ function InfoTile({ icon: IconComponent, title, value, hint }) {
   );
 }
 
+/**
+ * GET /api/admin/stats
+ */
 export default function AdminHomePage() {
   const [loading, setLoading] = useState(true);
   const [errU, setErrU] = useState("");
@@ -116,6 +122,7 @@ export default function AdminHomePage() {
       setErrG("");
       setErrO("");
       try {
+        // загружаем все метрики параллельно для скорости
         const [u, g, o, i, t] = await Promise.allSettled([
           countUsers(),
           countGames(),
@@ -171,7 +178,7 @@ export default function AdminHomePage() {
 
   return (
     <div className="grid gap-6 text-white">
-      {/* Статистики */}
+      {/* Статистика */}
       <div className="grid md:grid-cols-3 gap-4">
         <StatCard
           title="Пользователи"
@@ -219,7 +226,7 @@ export default function AdminHomePage() {
           </div>
         </Glass>
 
-        {/* ПРАВАЯ колонка (список таблиц) занимает 2/3 */}
+        {/* список таблиц */}
         <Glass className="p-5 lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <div className="text-white/85 text-sm">База данных</div>

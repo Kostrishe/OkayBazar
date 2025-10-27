@@ -5,7 +5,9 @@ import { healthCheck } from './db/pool.js';
 async function bootstrap() {
   try {
     const dbOk = await healthCheck();
-    if (!dbOk) console.warn('[startup] DB health check failed, but continuing...');
+    if (!dbOk) {
+      console.warn('[startup] DB health check failed, but continuing...');
+    }
   } catch (e) {
     console.warn('[startup] DB health check error:', e.message);
   }

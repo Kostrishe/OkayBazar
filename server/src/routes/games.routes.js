@@ -5,15 +5,16 @@ import { authRequired, roleRequired } from '../middleware/auth.js';
 
 const router = Router();
 
-/* Публичные */
+// публичные маршруты
 router.get('/', GamesController.list);
 router.get('/:idOrSlug', GamesController.getOne);
 
-/* Админка: CRUD + синхронизация связей */
+// админские маршруты: CRUD
 router.post('/', authRequired, roleRequired('admin'), GamesController.create);
 router.put('/:id', authRequired, roleRequired('admin'), GamesController.update);
 router.delete('/:id', authRequired, roleRequired('admin'), GamesController.remove);
 
+// админские маршруты: синхронизация связей
 router.put('/:id/genres', authRequired, roleRequired('admin'), GamesController.updateGenres);
 router.put('/:id/platforms', authRequired, roleRequired('admin'), GamesController.updatePlatforms);
 

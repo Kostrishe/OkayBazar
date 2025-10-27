@@ -1,5 +1,8 @@
 import React from "react";
 
+/*
+  Заголовок секции с опциональными действиями справа
+*/
 export default function SectionHeader({ title, children }) {
   return (
     <div className="flex items-center justify-between gap-3 mb-3">

@@ -1,14 +1,29 @@
-// client/src/services/account.js
 import { apiFetch } from "../lib/api";
 
-// Профиль
-export const getProfile = () => apiFetch("/auth/me"); // уже есть
+/**
+ * Получить профиль текущего пользователя
+ */
+export const getProfile = () => apiFetch("/auth/me");
+
+/**
+ * Обновить профиль текущего пользователя
+ */
 export const updateProfile = (payload) =>
-  apiFetch("/users/me", { method: "PUT", body: payload }); // НУЖНО добавить на бэке
+  apiFetch("/auth/profile", { method: "PUT", body: payload });
 
-// Смена пароля
+/**
+ * Сменить пароль текущего пользователя
+ * @param {object} params - Параметры смены пароля
+ * @param {string} params.currentPassword - Текущий пароль
+ * @param {string} params.newPassword - Новый пароль
+ */
 export const changePassword = ({ currentPassword, newPassword }) =>
-  apiFetch("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } });
+  apiFetch("/auth/change-password", {
+    method: "POST",
+    body: { currentPassword, newPassword },
+  });
 
-// Мои заказы
+/**
+ * Получить список заказов текущего пользователя
+ */
 export const fetchMyOrders = () => apiFetch("/orders/my");

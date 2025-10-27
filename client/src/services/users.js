@@ -1,6 +1,8 @@
-// src/services/users.js
 const API = import.meta.env?.VITE_API_URL || "/api";
 
+/**
+ * Получить заголовки авторизации из localStorage (если токен есть)
+ */
 function authHeaders() {
   try {
     const t = localStorage.getItem("token");
@@ -10,6 +12,9 @@ function authHeaders() {
   }
 }
 
+/**
+ * Универсальная функция для запросов к API (альтернатива apiFetch)
+ */
 async function request(url, opts = {}) {
   const res = await fetch(url, {
     method: opts.method || "GET",
@@ -21,16 +26,20 @@ async function request(url, opts = {}) {
     credentials: "include",
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     const err = new Error(`HTTP ${res.status} ${text}`);
     err.status = res.status;
     throw err;
   }
+
   return res.status === 204 ? null : res.json();
 }
 
-/** Получить всех пользователей */
+/**
+ * Получить всех пользователей (админка)
+ */
 export async function fetchUsers() {
   const data = await request(`${API}/users`);
   if (Array.isArray(data)) return data;
@@ -39,7 +48,11 @@ export async function fetchUsers() {
   return [];
 }
 
-/** Обновить пользователя (меняем только роль) */
+/**
+ * Обновить роль пользователя (админка)
+ * @param {number} id - ID пользователя
+ * @param {string} role - Новая роль (user/admin)
+ */
 export async function updateUserRole(id, role) {
   return request(`${API}/users/${id}`, {
     method: "PUT",
@@ -47,12 +60,21 @@ export async function updateUserRole(id, role) {
   });
 }
 
-/** Получить одного пользователя */
+/**
+ * Получить данные одного пользователя по ID (админка)
+ */
 export async function fetchUser(id) {
   return request(`${API}/users/${id}`);
 }
 
-/** СОЗДАТЬ пользователя (email, full_name, password, role) */
+/**
+ * Создать нового пользователя (админка)
+ * @param {object} params - Данные пользователя
+ * @param {string} params.email - Email
+ * @param {string} params.full_name - Полное имя
+ * @param {string} params.password - Пароль
+ * @param {string} params.role - Роль
+ */
 export async function createUser({ email, full_name, password, role }) {
   return request(`${API}/users`, {
     method: "POST",
@@ -60,7 +82,9 @@ export async function createUser({ email, full_name, password, role }) {
   });
 }
 
-/** УДАЛИТЬ пользователя */
+/**
+ * Удалить пользователя по ID (админка)
+ */
 export async function deleteUser(id) {
   return request(`${API}/users/${id}`, { method: "DELETE" });
 }

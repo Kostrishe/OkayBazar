@@ -5,7 +5,7 @@ import { authRequired, roleRequired } from '../middleware/auth.js';
 
 const router = Router();
 
-// admin-only
+// все маршруты только для админа
 router.get('/', authRequired, roleRequired('admin'), UsersController.list);
 router.get('/:id', authRequired, roleRequired('admin'), UsersController.getOne);
 router.post('/', authRequired, roleRequired('admin'), UsersController.create);

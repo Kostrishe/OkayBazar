@@ -1,6 +1,8 @@
-// src/services/admin.js
 const API = import.meta.env?.VITE_API_URL || "/api";
 
+/**
+ * Получить заголовки авторизации из localStorage (если токен есть).
+ */
 function authHeaders() {
   try {
     const t = localStorage.getItem("token");
@@ -10,6 +12,9 @@ function authHeaders() {
   }
 }
 
+/**
+ * Универсальная функция для запросов к API.
+ */
 async function request(url, opts = {}) {
   const res = await fetch(url, {
     method: opts.method || "GET",
@@ -21,15 +26,20 @@ async function request(url, opts = {}) {
     credentials: "include",
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     const err = new Error(`HTTP ${res.status} ${text}`);
     err.status = res.status;
     throw err;
   }
+
   return res.status === 204 ? null : res.json();
 }
 
+/**
+ * Вспомогательная функция для извлечения счётчика из разных форматов ответа.
+ */
 function extractCount(payload) {
   if (!payload) return 0;
   if (typeof payload.total === "number") return payload.total;
@@ -40,22 +50,34 @@ function extractCount(payload) {
   return 0;
 }
 
-/* ---------------- Реальные API-запросы для статистики ---------------- */
-
+/**
+ * Получить количество пользователей (для статистики админки).
+ */
 export async function countUsers() {
   const data = await request(`${API}/users`);
   return extractCount(data);
 }
+
+/**
+ * Получить количество игр (для статистики админки).
+ */
 export async function countGames() {
   const data = await request(`${API}/games`);
   return extractCount(data);
 }
+
+/**
+ * Получить количество заказов (для статистики админки).
+ */
 export async function countOrders() {
   const data = await request(`${API}/orders`);
   return extractCount(data);
 }
 
-/* ---------------- Кнопка синхронизации ---------------- */
+/**
+ * Запустить синхронизацию данных (кнопка в админке).
+ * Пробует несколько возможных эндпоинтов.
+ */
 export async function triggerSync() {
   const candidates = [
     `${API}/admin/sync`,
@@ -63,30 +85,35 @@ export async function triggerSync() {
     `${API}/games/sync`,
   ];
   let lastErr;
+
   for (const url of candidates) {
     try {
       return await request(url, { method: "POST" });
-    } catch (e) {
-      lastErr = e;
+    } catch {
+      // если ничего не сработало — выбрасываем последнюю ошибку
+      throw lastErr ?? new Error("Не удалось выполнить синхронизацию");
     }
   }
+
   // имитация успешной синхры, если ничего не найдено
   await new Promise((r) => setTimeout(r, 800));
   return { success: true, message: "Mock sync complete" };
 }
 
-/* ---------------- Заглушка: инфо о портах и таблицах ---------------- */
-
+/**
+ * Получить информацию о портах (заглушка для админки).
+ */
 export async function getAdminInfo() {
-  // просто возвращаем заранее заданные значения
   return {
     backendPort: 3001,
     frontendPort: 5173,
   };
 }
 
+/**
+ * Получить список таблиц БД (заглушка для админки).
+ */
 export async function getDbTables() {
-  // возвращаем список «как будто из БД»
   return [
     "game_genres",
     "game_platforms",

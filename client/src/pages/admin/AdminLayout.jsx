@@ -1,4 +1,3 @@
-// src/pages/admin/AdminLayout.jsx
 import React, { useMemo } from "react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import Background from "../../components/ui/Background";
@@ -31,6 +30,7 @@ export default function AdminLayout() {
   const fullName = user?.full_name || user?.name || "Администратор";
   const email = user?.email || "";
 
+  // подсказка в хедере в зависимости от текущей страницы
   const note = useMemo(() => {
     const p = location.pathname;
     if (p.startsWith("/admin/users"))

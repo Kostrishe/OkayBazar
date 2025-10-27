@@ -19,6 +19,7 @@ function fmt(dt) {
   }
 }
 
+// нормализация пользователя (на случай разных форматов полей)
 function normalizeUser(u = {}) {
   const n = { ...u };
   if (n.updatedAt && !n.updated_at) n.updated_at = n.updatedAt;
@@ -26,25 +27,30 @@ function normalizeUser(u = {}) {
   return n;
 }
 
+/**
+ * GET /api/users
+ * Админская страница управления пользователями.
+ * Я сделала возможность просмотра, изменения роли, добавления и удаления пользователей.
+ */
 export default function AdminUsersPage() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
 
   const [savingId, setSavingId] = useState(null);
-  const [draftRoles, setDraftRoles] = useState({}); // { [id]: "admin" | "customer" }
+  const [draftRoles, setDraftRoles] = useState({});
 
-  // Модалка просмотра
+  // модалка просмотра
   const [viewId, setViewId] = useState(null);
   const [viewData, setViewData] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
 
-  // Модалка добавления
+  // модалка добавления
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({ email: "", full_name: "", password: "", role: "customer" });
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
 
-  // Подтверждение удаления
+  // подтверждение удаления
   const [delId, setDelId] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -58,6 +64,7 @@ export default function AdminUsersPage() {
       const rows = Array.isArray(list) ? list.map(normalizeUser) : [];
       setItems(rows);
 
+      // инициализируем черновики ролей
       const init = {};
       rows.forEach((u) => {
         if (u?.id != null) init[u.id] = u.role || "customer";
@@ -129,7 +136,7 @@ export default function AdminUsersPage() {
         email: addForm.email.trim(),
         full_name: addForm.full_name.trim() || null,
         password: addForm.password,
-        role: addForm.role, // важно: "admin" | "customer"
+        role: addForm.role,
       });
       setAddOpen(false);
       setAddForm({ email: "", full_name: "", password: "", role: "customer" });
@@ -280,6 +287,7 @@ export default function AdminUsersPage() {
                 className="h-8 w-8 rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 flex items-center justify-center"
                 onClick={() => setAddOpen(false)}
                 title="Закрыть"
+                type="button"
               >
                 <X size={16} />
               </button>
@@ -334,6 +342,7 @@ export default function AdminUsersPage() {
               <button
                 className="rounded-xl px-4 py-2 border border-white/25 bg-white/10 hover:bg-white/15"
                 onClick={() => setAddOpen(false)}
+                type="button"
               >
                 Отмена
               </button>
@@ -342,6 +351,7 @@ export default function AdminUsersPage() {
                 style={{ background: "linear-gradient(90deg, #7C4DFF, #36E1B6)", borderColor: "transparent" }}
                 onClick={onCreateUser}
                 disabled={adding}
+                type="button"
               >
                 {adding ? "Создание…" : "Создать"}
               </button>
@@ -361,6 +371,7 @@ export default function AdminUsersPage() {
                 className="h-8 w-8 rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 flex items-center justify-center"
                 onClick={() => setDelId(null)}
                 title="Закрыть"
+                type="button"
               >
                 <X size={16} />
               </button>
@@ -374,6 +385,7 @@ export default function AdminUsersPage() {
               <button
                 className="rounded-xl px-4 py-2 border border-white/25 bg-white/10 hover:bg-white/15"
                 onClick={() => setDelId(null)}
+                type="button"
               >
                 Отмена
               </button>
@@ -381,6 +393,7 @@ export default function AdminUsersPage() {
                 className="rounded-xl px-4 py-2 border border-red-400/30 bg-red-500/15 text-red-100 disabled:opacity-60"
                 onClick={onConfirmDelete}
                 disabled={deleting}
+                type="button"
               >
                 {deleting ? "Удаление…" : "Удалить"}
               </button>
@@ -400,6 +413,7 @@ export default function AdminUsersPage() {
                 className="h-8 w-8 rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 flex items-center justify-center"
                 onClick={() => setViewId(null)}
                 title="Закрыть"
+                type="button"
               >
                 <X size={16} />
               </button>

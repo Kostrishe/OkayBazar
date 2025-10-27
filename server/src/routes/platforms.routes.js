@@ -5,11 +5,11 @@ import { authRequired, roleRequired } from '../middleware/auth.js';
 
 const router = Router();
 
-// public
+// публичные маршруты
 router.get('/', PlatformsController.list);
 router.get('/:id', PlatformsController.getOne);
 
-// admin-only
+// только для админа
 router.post('/', authRequired, roleRequired('admin'), PlatformsController.create);
 router.put('/:id', authRequired, roleRequired('admin'), PlatformsController.update);
 router.delete('/:id', authRequired, roleRequired('admin'), PlatformsController.remove);

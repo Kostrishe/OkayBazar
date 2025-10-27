@@ -1,15 +1,23 @@
 import { pool } from '../db/pool.js';
 
-const err = (s, m) => Object.assign(new Error(m), { status: s });
+const httpError = (status, message) => {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+};
 
+/**
+ * Общая сумма заказа
+ */
 async function calcTotalAmount(items) {
-  // подсчёт суммы на сервере
   let total = 0;
   for (const it of items) {
     const qty = Number(it.qty ?? 1);
-    if (!it.game_id || !it.platform_id || !qty) throw err(400, 'invalid order item');
+    if (!it.game_id || !it.platform_id || !qty) {
+      throw httpError(400, 'invalid order item');
+    }
 
-    // цена: override из game_platforms или games.price_final
+    // цена: берём из games.price_final для связки игра-платформа
     const { rows } = await pool.query(
       `
       SELECT COALESCE(g.price_final) AS price
@@ -21,14 +29,17 @@ async function calcTotalAmount(items) {
       [it.game_id, it.platform_id]
     );
 
-    if (!rows[0]) throw err(400, 'game/platform mismatch');
+    if (!rows[0]) throw httpError(400, 'game/platform mismatch');
     total += rows[0].price * qty;
   }
   return Math.round(total * 100) / 100;
 }
 
 export const OrdersController = {
-  // GET /api/orders?user_id=
+  /**
+   * GET /api/orders?user_id=
+   * Возвращает список всех заказов
+   */
   async list(req, res, next) {
     try {
       const { user_id } = req.query;
@@ -56,21 +67,22 @@ export const OrdersController = {
         params
       );
 
-      // теперь каждый объект rows[i] уже содержит notes и updated_at,
-      // которые ждёт твой AdminOrdersPage
       res.json(rows);
     } catch (e) {
       next(e);
     }
   },
 
-  // GET /api/orders/:id
+  /**
+   * GET /api/orders/:id
+   * Возвращает детали конкретного заказа
+   */
   async getOne(req, res, next) {
     try {
       const { id } = req.params;
 
-      const { rows } = await pool.query('SELECT * FROM orders WHERE id=$1', [id]);
-      if (!rows[0]) throw err(404, 'Order not found');
+      const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+      if (!rows[0]) throw httpError(404, 'Order not found');
 
       const order = rows[0];
 
@@ -122,14 +134,16 @@ export const OrdersController = {
     }
   },
 
-  // POST /api/orders
-  // { user_id, items:[{game_id, platform_id, qty}], notes? }
+  /**
+   * POST /api/orders
+   * Создаёт новый заказ с указанными позициями
+   */
   async create(req, res, next) {
     const client = await pool.connect();
     try {
       const { items = [], notes } = req.body;
       const user_id = req.user?.id ?? req.body.user_id;
-      if (!user_id) throw err(400, 'user_id is required');
+      if (!user_id) throw httpError(400, 'user_id is required');
 
       const total = await calcTotalAmount(items);
 
@@ -145,6 +159,7 @@ export const OrdersController = {
       );
       const order = o[0];
 
+      // добавляем позиции заказа
       for (const it of items) {
         const { rows: priceRow } = await client.query(
           `
@@ -155,7 +170,7 @@ export const OrdersController = {
           `,
           [it.game_id, it.platform_id]
         );
-        if (!priceRow[0]) throw err(400, 'game/platform mismatch');
+        if (!priceRow[0]) throw httpError(400, 'game/platform mismatch');
 
         const unitPrice = priceRow[0].price;
         const qty = Number(it.qty ?? 1);
@@ -185,7 +200,10 @@ export const OrdersController = {
     }
   },
 
-  // PUT /api/orders/:id   (обновление статусов / заметок)
+  /**
+   * PUT /api/orders/:id
+   * Обновляет статусы заказа
+   */
   async update(req, res, next) {
     try {
       const { id } = req.params;
@@ -204,14 +222,17 @@ export const OrdersController = {
         [id, status ?? null, payment_status ?? null, notes ?? null]
       );
 
-      if (!rows[0]) throw err(404, 'Order not found');
+      if (!rows[0]) throw httpError(404, 'Order not found');
       res.json(rows[0]);
     } catch (e) {
       next(e);
     }
   },
 
-  // DELETE /api/orders/:id  (в учебном проекте — "отмена")
+  /**
+   * DELETE /api/orders/:id
+   * Отмена заказа
+   */
   async remove(req, res, next) {
     try {
       const { id } = req.params;
@@ -220,25 +241,28 @@ export const OrdersController = {
       const { rows } = await pool.query(
         `
         UPDATE orders
-        SET status='cancelled',
-            updated_at=now()
-        WHERE id=$1
+        SET status = 'cancelled',
+            updated_at = now()
+        WHERE id = $1
         RETURNING id, status
         `,
         [id]
       );
 
-      if (!rows[0]) throw err(404, 'Order not found');
+      if (!rows[0]) throw httpError(404, 'Order not found');
       res.json(rows[0]);
     } catch (e) {
       next(e);
     }
   },
 
-  // GET /api/orders/my
+  /**
+   * GET /api/orders/my
+   * Возвращает заказы текущего пользователя
+   */
   async getMyOrders(req, res, next) {
     try {
-      const userId = req.user?.id; // authRequired должен класть {id, role, email} в req.user
+      const userId = req.user?.id;
       if (!userId) return res.status(401).json({ message: 'Не авторизован' });
 
       const result = await pool.query(
@@ -257,16 +281,18 @@ export const OrdersController = {
     }
   },
 
-  // POST /api/orders/confirm
-  // { contactEmail, paymentMethod }
+  /**
+   * POST /api/orders/confirm
+   * Подтверждение заказа
+   */
   async confirmPending(req, res, next) {
     const client = await pool.connect();
     try {
       const uid = req.user?.id;
-      if (!uid) throw err(401, 'Unauthorized');
+      if (!uid) throw httpError(401, 'Unauthorized');
 
       const { contactEmail, paymentMethod = 'card' } = req.body || {};
-      if (!contactEmail) throw err(400, 'contactEmail is required');
+      if (!contactEmail) throw httpError(400, 'contactEmail is required');
 
       await client.query('BEGIN');
 
@@ -287,7 +313,7 @@ export const OrdersController = {
         `,
         [uid]
       );
-      if (!ords[0]) throw err(400, 'Cart is empty');
+      if (!ords[0]) throw httpError(400, 'Cart is empty');
 
       const cartOrderId = ords[0].id;
       const cartTotal = Number(ords[0].total_amount || 0);
@@ -301,7 +327,7 @@ export const OrdersController = {
         `,
         [cartOrderId]
       );
-      if (!cntRows[0] || cntRows[0].cnt <= 0) throw err(400, 'Cart is empty');
+      if (!cntRows[0] || cntRows[0].cnt <= 0) throw httpError(400, 'Cart is empty');
 
       // 2) Создаём НОВЫЙ заказ-снимок (notes: "Оплата онлайн")
       const { rows: newOrderRows } = await client.query(
@@ -336,7 +362,7 @@ export const OrdersController = {
         [newOrderId]
       );
       if (!newCnt[0] || newCnt[0].cnt <= 0) {
-        throw err(500, 'Failed to move items');
+        throw httpError(500, 'Failed to move items');
       }
 
       // 4) Автовыдача: помечаем как выдано

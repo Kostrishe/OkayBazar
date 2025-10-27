@@ -17,6 +17,9 @@ export default function AuthPage() {
   const location = useLocation();
   const backTo = location.state?.from || "/";
 
+  /**
+   * Обработка отправки формы (вход или регистрация).
+   */
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
@@ -48,6 +51,7 @@ export default function AuthPage() {
           </a>
         </div>
 
+        {/* Переключатель режима */}
         <div className="mb-4 grid grid-cols-2 gap-2">
           <button
             type="button"

@@ -2,7 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { SearchX, RefreshCcw } from "lucide-react";
 import { Glass } from "./Glass";
-import { motion } from "framer-motion"; // <-- ВАЖНО: добавили импорт
+// eslint-disable-next-line no-unused-vars
+import { motion } from "framer-motion";
 
 export default function EmptyState({
   title = "Ничего не найдено",
@@ -26,6 +27,7 @@ export default function EmptyState({
                 "radial-gradient(60% 60% at 50% 50%, rgba(124,77,255,.35), rgba(54,225,182,.25), transparent)",
             }}
           />
+
           <div className="flex flex-col items-center gap-4 relative">
             <div className="p-4 rounded-2xl bg-white/5 backdrop-blur">
               <SearchX className="w-12 h-12 opacity-90" />
@@ -41,7 +43,9 @@ export default function EmptyState({
                   className="px-4 py-2 rounded-xl transition
                              border border-white/15 bg-white/10 backdrop-blur
                              hover:bg-white/15 active:scale-[0.98]"
-                  style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.04) inset" }}
+                  style={{
+                    boxShadow: "0 0 0 1px rgba(255,255,255,0.04) inset",
+                  }}
                 >
                   <span className="inline-flex items-center gap-2">
                     <RefreshCcw className="w-4 h-4" />

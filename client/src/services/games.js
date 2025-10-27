@@ -1,6 +1,8 @@
 import { apiFetch, resolveImage, API_URL } from "../lib/api";
 
-// --- утилиты парсинга ---
+/**
+ * Вспомогательная функция для извлечения массива из разных форматов ответа API.
+ */
 function pickArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (payload && Array.isArray(payload.data)) return payload.data;
@@ -10,7 +12,9 @@ function pickArray(payload) {
   return [];
 }
 
-// СЫРОЙ список игр для админки: возвращает как есть из бэка (с датами)
+/**
+ * Получить СЫРОЙ список игр для админки (с датами, как есть из бэка).
+ */
 export async function fetchGamesRaw({ page = 1, limit = 100, ...rest } = {}) {
   const qs = new URLSearchParams();
   qs.set("page", String(page));
@@ -28,6 +32,9 @@ export async function fetchGamesRaw({ page = 1, limit = 100, ...rest } = {}) {
   return items;
 }
 
+/**
+ * Форматирование цены в рублях (целые, без копеек).
+ */
 function formatRub(v) {
   if (v == null || v === "") return "";
   const n = Number(String(v).replace(",", "."));
@@ -42,7 +49,10 @@ function formatRub(v) {
   );
 }
 
-/* ===== НОРМАЛИЗАЦИЯ ИГРЫ ===== */
+/**
+ * Нормализация объекта игры для фронтенда (карточки).
+ * Преобразует разные форматы бэка в единый формат для ProductCard.
+ */
 function mapGame(g) {
   const cover = g?.cover_url || g?.cover || g?.image || "";
   const screenshots = Array.isArray(g?.screenshots) ? g.screenshots : [];
@@ -73,7 +83,10 @@ function mapGame(g) {
   };
 }
 
-/* ===== СПРАВОЧНИКИ (ЖАНРЫ/ПЛАТФОРМЫ) ===== */
+/**
+ * Получить список жанров из разных возможных эндпоинтов.
+ * Пробует несколько вариантов URL, возвращает первый успешный результат.
+ */
 export async function fetchGenres() {
   const candidates = ["/genres", "/games/filters/genres", "/filters/genres"];
   for (const path of candidates) {
@@ -92,11 +105,16 @@ export async function fetchGenres() {
           .filter(Boolean);
         return list;
       }
-    } catch {}
+    } catch {
+      // пробуем следующий эндпоинт
+    }
   }
   return [];
 }
 
+/**
+ * Получить список платформ из разных возможных эндпоинтов.
+ */
 export async function fetchPlatforms() {
   const candidates = [
     "/platforms",
@@ -119,12 +137,17 @@ export async function fetchPlatforms() {
           .filter(Boolean);
         return list;
       }
-    } catch {}
+    } catch {
+      // пробуем следующий эндпоинт
+    }
   }
   return [];
 }
 
-/* ===== ОСНОВНАЯ ВЫБОРКА ДЛЯ КАТАЛОГА ===== */
+/**
+ * Основная выборка игр для каталога с фильтрами и сортировкой.
+ * Поддерживает пагинацию, фильтры по жанрам/платформам/цене.
+ */
 export async function fetchGames({
   sort = "name",
   genreIds = [],
@@ -141,6 +164,8 @@ export async function fetchGames({
   qs.set("page", String(page));
   qs.set("limit", String(limit));
   qs.set("sort", sort);
+
+  // нормализуем сортировку для бэка
   const order =
     sort === "name"
       ? "name_asc"
@@ -151,6 +176,7 @@ export async function fetchGames({
       : String(sort);
   qs.set("order", order);
 
+  // преобразуем ID в числа или строки в зависимости от формата
   const gIds = (genreIds || []).map((v) =>
     String(Number(v)) === String(v) ? Number(v) : String(v)
   );
@@ -184,61 +210,97 @@ export async function fetchGames({
   return pickArray(res).map(mapGame);
 }
 
+/**
+ * Получить популярные игры (пробует несколько эндпоинтов).
+ */
 export async function fetchPopularGames(limit = 8) {
   try {
     const data = await apiFetch(`/games?sort=popular&limit=${limit}`);
     const arr = pickArray(data).map(mapGame);
     if (arr.length) return arr.slice(0, limit);
-  } catch {}
+  } catch {
+    // пробуем альтернативный эндпоинт
+  }
   try {
     const data = await apiFetch(`/games/popular?limit=${limit}`);
     const arr = pickArray(data).map(mapGame);
     if (arr.length) return arr.slice(0, limit);
-  } catch {}
+  } catch {
+    // тихо игнорируем
+  }
   return [];
 }
 
+/**
+ * Получить новые релизы.
+ */
 export async function fetchNewReleases(limit = 4) {
   try {
     const data = await apiFetch(`/games?sort=new&limit=${limit}`);
     const arr = pickArray(data).map(mapGame);
     if (arr.length) return arr.slice(0, limit);
-  } catch {}
+  } catch {
+    // пробуем альтернативный эндпоинт
+  }
   try {
     const data = await apiFetch(`/games/new?limit=${limit}`);
     const arr = pickArray(data).map(mapGame);
     if (arr.length) return arr.slice(0, limit);
-  } catch {}
+  } catch {
+    // тихо игнорируем
+  }
   return [];
 }
 
+/**
+ * Получить случайные игры (для героя главной страницы).
+ */
 export async function fetchRandomGames(limit = 3) {
   try {
     const res = await apiFetch(`/games/random?limit=${limit}`);
     const arr = pickArray(res).map(mapGame);
     if (arr.length) return arr.slice(0, limit);
-  } catch {}
+  } catch {
+    // пробуем альтернативный эндпоинт
+  }
   try {
     const res = await apiFetch(`/games?sort=random&limit=${limit}`);
     const arr = pickArray(res).map(mapGame);
     if (arr.length) return arr.slice(0, limit);
-  } catch {}
+  } catch {
+    // тихо игнорируем
+  }
   return [];
 }
 
+/**
+ * Добавить игру в корзину.
+ */
 export async function addToCart(gameId, qty = 1) {
   return apiFetch(`/cart`, { method: "POST", body: { gameId, quantity: qty } });
 }
 
+/**
+ * Получить текущее состояние корзины пользователя.
+ */
 export async function fetchCart() {
   return apiFetch(`/cart`, { method: "GET" });
 }
 
+/**
+ * Удалить товар из корзины по ID позиции.
+ */
 export const removeFromCart = (itemId) =>
   apiFetch(`/cart/${itemId}`, { method: "DELETE" });
 
+/**
+ * Очистить всю корзину.
+ */
 export const clearCart = () => apiFetch("/cart", { method: "DELETE" });
 
+/**
+ * Парсинг детальной информации об игре для модального окна.
+ */
 function parseGameDetail(g) {
   if (!g) return null;
 
@@ -276,15 +338,24 @@ function parseGameDetail(g) {
   };
 }
 
+/**
+ * Получить детальную информацию об игре по ID или slug.
+ */
 export async function fetchGame(idOrSlug) {
   const data = await apiFetch(`/games/${idOrSlug}`);
   return parseGameDetail(data);
 }
 
+/**
+ * Обновить данные игры (админка).
+ */
 export async function updateGame(id, payload) {
   return apiFetch(`/games/${id}`, { method: "PUT", body: payload });
 }
 
+/**
+ * Обновить жанры игры (админка).
+ */
 export async function updateGameGenres(
   id,
   { genreIds = [], genreNames = [] } = {}
@@ -295,18 +366,24 @@ export async function updateGameGenres(
   return apiFetch(`/games/${id}/genres`, { method: "PUT", body });
 }
 
+/**
+ * Обновить платформы игры (админка).
+ */
 export async function updateGamePlatforms(id, { platformIds = [] } = {}) {
   const body = { platform_ids: platformIds };
   return apiFetch(`/games/${id}/platforms`, { method: "PUT", body });
 }
 
+/**
+ * Создать новую игру (админка).
+ */
 export async function createGame(payload) {
   return apiFetch(`/games`, { method: "POST", body: payload });
 }
 
 /**
- * ✅ Единственная функция загрузки изображений
- * Загружает файл на сервер в указанную папку (covers или screens)
+ * Единственная функция загрузки изображений на сервер.
+ * Загружает файл в указанную папку (covers или screens).
  * @param {string} folder - "covers" или "screens"
  * @param {File} file - файл изображения
  * @returns {Promise<{url: string, rel: string}>} - URL и относительный путь
@@ -315,7 +392,7 @@ export async function uploadImageTo(folder, file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  // Используем API_URL напрямую, так как это multipart/form-data
+  // используем API_URL напрямую, так как это multipart/form-data
   const res = await fetch(`${API_URL}/media/upload?folder=${folder}`, {
     method: "POST",
     credentials: "include",

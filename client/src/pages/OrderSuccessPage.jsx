@@ -4,12 +4,18 @@ import Background from "../components/ui/Background";
 import { getOrder } from "../services/orders";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 
+/**
+ * Вспомогательный компонент для отображения цены в рублях.
+ */
 function Rub({ value }) {
   const n = Number(value || 0);
   return <>{n.toLocaleString("ru-RU")} ₽</>;
 }
 
-// детерминированно выбираем почту продавца по id заказа
+/**
+ * Детерминированно выбираем почту продавца по id заказа.
+ * Это нужно для демонстрации — в реальном проекте данные должны приходить с бэка.
+ */
 function getSellerEmail(orderId) {
   const choices = [
     "auto-delivery-1@okaybazar.com",
@@ -72,14 +78,19 @@ export default function OrderSuccessPage() {
                 <div className="sm:col-span-2">
                   <div className="text-white/70 text-sm">E-mail продавца</div>
                   <div className="text-xl font-semibold">
-                    <a className="underline underline-offset-4" href={`mailto:${seller}`}>{seller}</a>
+                    <a
+                      className="underline underline-offset-4"
+                      href={`mailto:${seller}`}
+                    >
+                      {seller}
+                    </a>
                   </div>
                 </div>
               </div>
 
               <p className="mt-4 text-white/70 text-sm">
-                Ключи будут отправлены продавцом на указанную вами почту. 
-                При необходимости свяжитесь с продавцом по адресу выше.
+                Ключи будут отправлены продавцом на указанную вами почту. При
+                необходимости свяжитесь с продавцом по адресу выше.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">

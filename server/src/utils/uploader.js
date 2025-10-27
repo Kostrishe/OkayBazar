@@ -7,9 +7,13 @@ import crypto from 'crypto';
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 const maxMb = Number(process.env.MAX_FILE_SIZE_MB || 8);
 
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+// создаю папку для загрузок, если её нет
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-const storage = multer.memoryStorage(); // в память, потом через sharp на диск
+// настраиваю multer для загрузки в память
+const storage = multer.memoryStorage();
 
 export const upload = multer({
   storage,
@@ -20,25 +24,30 @@ export const upload = multer({
   }
 });
 
+// Функция для генерации случайного имени файла
 function randomName(ext) {
   return `${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${ext}`;
 }
 
+// Функция для сохранения изображения из буфера
 export async function saveImageBuffer(buf, subfolder = '', opts = { width: 1920, quality: 80 }) {
   const folder = path.join(uploadDir, subfolder);
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+  if (!fs.existsSync(folder)) {
+    fs.mkdirSync(folder, { recursive: true });
+  }
 
-  // определим расширение под webp
+  // определяю расширение под webp
   const filename = randomName('webp');
   const filepath = path.join(folder, filename);
 
+  // сохраняю основное изображение
   await sharp(buf)
-    .rotate()                    // авто-EXIF
+    .rotate() // авто-поворот по EXIF
     .resize({ width: opts.width, withoutEnlargement: true })
     .webp({ quality: opts.quality })
     .toFile(filepath);
 
-  // сделаем превью (миниатюру)
+  // создаю миниатюру для превью
   const thumbName = filename.replace('.webp', '.thumb.webp');
   const thumbPath = path.join(folder, thumbName);
   await sharp(buf)
@@ -49,6 +58,7 @@ export async function saveImageBuffer(buf, subfolder = '', opts = { width: 1920,
 
   const base = process.env.BASE_URL || '';
   const publicBase = `${base.replace(/\/$/, '')}/uploads/${subfolder ? subfolder + '/' : ''}`;
+
   return {
     url: `${publicBase}${filename}`,
     thumb_url: `${publicBase}${thumbName}`

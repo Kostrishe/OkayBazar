@@ -1,8 +1,13 @@
-// src/components/ui/CheckboxGlass.jsx
 import React from "react";
 import { Check } from "lucide-react";
 
-export default function CheckboxGlass({ label, value, checked, onChange, className = "" }) {
+export default function CheckboxGlass({
+  label,
+  value,
+  checked,
+  onChange,
+  className = "",
+}) {
   return (
     <label
       className={[
@@ -27,8 +32,9 @@ export default function CheckboxGlass({ label, value, checked, onChange, classNa
           "rounded-[6px]",
           "backdrop-blur-md bg-white/10 border border-white/20",
           "transition-all duration-200",
-          checked ? "bg-[rgba(124,77,255,0.28)] border-[rgba(124,77,255,0.55)] ring-2 ring-[rgba(124,77,255,0.35)]"
-                  : "hover:bg-white/14 hover:border-white/35",
+          checked
+            ? "bg-[rgba(124,77,255,0.28)] border-[rgba(124,77,255,0.55)] ring-2 ring-[rgba(124,77,255,0.35)]"
+            : "hover:bg-white/14 hover:border-white/35",
           "shadow-[inset_0_1px_6px_rgba(255,255,255,0.18),_0_0_10px_rgba(255,255,255,0.06)]",
         ].join(" ")}
         aria-hidden="true"

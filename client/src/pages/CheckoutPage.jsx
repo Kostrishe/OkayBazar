@@ -2,11 +2,14 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { fetchCart } from "../services/games";
 import { confirmOrder } from "../services/orders";
-import { removeCartItem } from "../services/cart"; // NEW
+import { removeCartItem } from "../services/cart";
 import THEME from "../styles/theme";
 import { X, ArrowLeft, CreditCard, Check } from "lucide-react";
-import Background from "../components/ui/Background"; // NEW
+import Background from "../components/ui/Background";
 
+/**
+ * Вспомогательный компонент для отображения цены в рублях.
+ */
 function Rub({ value }) {
   const n = Number(value || 0);
   return <>{n.toLocaleString("ru-RU")} ₽</>;
@@ -24,12 +27,15 @@ export default function CheckoutPage() {
   const [agree, setAgree] = useState(true);
   const [error, setError] = useState("");
 
+  /**
+   * Загрузка корзины с сервера.
+   */
   const loadCart = useCallback(async () => {
     setLoading(true);
     try {
       const p = await fetchCart();
       setCart(p || { items: [], count: 0, total: 0 });
-      // синхронизируем бейдж в хэдере
+      // синхронизируем бейдж в хедере
       window.dispatchEvent(new CustomEvent("cart:updated", { detail: p }));
     } catch {
       setCart({ items: [], count: 0, total: 0 });
@@ -42,6 +48,9 @@ export default function CheckoutPage() {
     loadCart();
   }, [loadCart]);
 
+  /**
+   * Проверка, можно ли отправить форму.
+   */
   const disabled = useMemo(() => {
     return (
       submitting ||
@@ -53,6 +62,9 @@ export default function CheckoutPage() {
     );
   }, [submitting, loading, email, cart.items, agree]);
 
+  /**
+   * Обработка отправки формы (подтверждение заказа).
+   */
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
@@ -81,8 +93,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // если сервер не вернул id — не уводим в профиль, а показываем ошибку
-      console.log("confirmOrder() response:", res);
+      // если сервер не вернул id — показываем ошибку
       setError("Не удалось получить номер заказа. Попробуйте ещё раз.");
     } catch (e) {
       setError(e?.message || "Не удалось подтвердить заказ");
@@ -91,6 +102,9 @@ export default function CheckoutPage() {
     }
   }
 
+  /**
+   * Удаление товара из корзины.
+   */
   async function onRemoveItem(rowId) {
     try {
       await removeCartItem(rowId);
@@ -138,10 +152,11 @@ export default function CheckoutPage() {
                     null;
                   const title = it.title || it.game_title || "Игра";
                   const platform = it.platform || it.platform_name || "";
-                  // subtotal приходит у некоторых реализаций, иначе берём unit_price * qty (qty сервер уже держит)
+                  // subtotal приходит у некоторых реализаций, иначе берём unit_price * qty
                   const price =
                     it.subtotal ??
                     Number(it.unit_price || 0) * Number(it.qty || 1);
+
                   return (
                     <li key={it.id} className="py-4 flex items-center gap-4">
                       <div className="relative w-16 h-16 rounded-xl bg-white/10 border border-white/20 overflow-hidden flex items-center justify-center shrink-0">
@@ -188,7 +203,7 @@ export default function CheckoutPage() {
             )}
           </section>
 
-          {/* Итог + форма */}
+          {/* Итого + форма */}
           <aside className="lg:col-span-1 space-y-6">
             {/* Контакты + оплата */}
             <form

@@ -26,7 +26,9 @@ export default function SelectGlass({
     [options, value]
   );
 
-  // высчитать и сохранить позицию списка
+  /**
+   * Высчитать и сохранить позицию списка.
+   */
   const computePosition = () => {
     const el = btnRef.current;
     if (!el) return;
@@ -46,7 +48,7 @@ export default function SelectGlass({
       const onResize = () => computePosition();
       const onScroll = () => computePosition();
       window.addEventListener("resize", onResize, { passive: true });
-      window.addEventListener("scroll", onScroll, true); // true -> ловим скролл на предках тоже
+      window.addEventListener("scroll", onScroll, true);
       return () => {
         window.removeEventListener("resize", onResize);
         window.removeEventListener("scroll", onScroll, true);
@@ -59,7 +61,7 @@ export default function SelectGlass({
   useEffect(() => {
     function handleDocClick(e) {
       const btn = btnRef.current;
-      if (btn && btn.contains(e.target)) return; // по кнопке — не закрываем
+      if (btn && btn.contains(e.target)) return;
       setOpen(false);
       setHighlight(-1);
     }
@@ -70,7 +72,9 @@ export default function SelectGlass({
     return undefined;
   }, [open]);
 
-  // клавиатура
+  /**
+   * Обработка клавиатуры: стрелки, Enter, Escape.
+   */
   function onKeyDown(e) {
     if (
       !open &&
@@ -105,9 +109,9 @@ export default function SelectGlass({
     }
   }
 
-  // сам триггер (кнопка)
   return (
     <div className={`relative inline-block ${className}`}>
+      {/* Триггер (кнопка) */}
       <button
         type="button"
         aria-haspopup="listbox"
@@ -119,7 +123,6 @@ export default function SelectGlass({
         className={[
           "w-full min-w-[180px] rounded-xl px-3 pr-9 py-2 text-left",
           "text-white text-sm sm:text-base",
-          // стиль — как в твоей версии:
           "bg-[rgba(24,26,34,0.75)] backdrop-blur-2xl",
           "border border-white/12",
           "shadow-[inset_0_1px_10px_rgba(255,255,255,0.25),_0_0_25px_rgba(0,0,0,0.35)]",
@@ -160,7 +163,7 @@ export default function SelectGlass({
               top: coords.top,
               left: coords.left,
               width: coords.width,
-              zIndex: 999999, // поверх любого UI
+              zIndex: 999999,
             }}
             className={[
               "max-h-64 overflow-auto p-1 rounded-xl",

@@ -4,9 +4,12 @@ import SectionHeader from "./_parts/SectionHeader";
 import NoData from "./_parts/NoData";
 import { apiFetch } from "../../lib/api";
 import { Eye, XCircle, X } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from "framer-motion";
 
-// Модальное окно деталей заказа в стиле Glass
+/*
+  Модальное окно деталей заказа
+ */
 function OrderDetailsModal({ order, onClose }) {
   if (!order) return null;
 
@@ -49,6 +52,7 @@ function OrderDetailsModal({ order, onClose }) {
           <button
             onClick={onClose}
             className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/30 text-white transition"
+            type="button"
           >
             <X size={20} />
           </button>
@@ -209,6 +213,10 @@ function OrderDetailsModal({ order, onClose }) {
   );
 }
 
+/*
+  GET /api/orders
+  Админская страница управления заказами
+ */
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -223,17 +231,17 @@ export default function AdminOrdersPage() {
     try {
       const data = await apiFetch("/orders");
 
-      // Для каждого заказа получаем детали только для извлечения email доставки и даты выдачи
+      // для каждого заказа получаем детали только для извлечения email доставки и даты выдачи
       const ordersWithDetails = await Promise.all(
         data.map(async (order) => {
           try {
             const details = await apiFetch(`/orders/${order.id}`);
 
-            // Извлекаем email доставки из первой позиции
+            // извлекаем email доставки из первой позиции
             const deliveryEmail =
               details.items?.[0]?.delivered_to_email || null;
 
-            // Извлекаем дату выдачи (берём максимальную из всех позиций)
+            // извлекаем дату выдачи (берём максимальную из всех позиций)
             const deliveredDates = details.items
               ?.map((item) => item.delivered_at)
               .filter(Boolean);
@@ -243,7 +251,7 @@ export default function AdminOrdersPage() {
                 : null;
 
             return {
-              ...order, // уже содержит notes и updated_at из основного запроса
+              ...order,
               delivered_to_email: deliveryEmail,
               delivered_at: deliveredAt,
             };
@@ -406,6 +414,7 @@ export default function AdminOrdersPage() {
                             disabled={detailsLoading}
                             className="p-1.5 rounded hover:bg-white/10 transition text-blue-400 disabled:opacity-50"
                             title="Просмотр деталей"
+                            type="button"
                           >
                             <Eye size={18} />
                           </button>
@@ -415,6 +424,7 @@ export default function AdminOrdersPage() {
                                 onClick={() => handleCancelOrder(order.id)}
                                 className="p-1.5 rounded hover:bg-white/10 transition text-red-400"
                                 title="Отменить заказ"
+                                type="button"
                               >
                                 <XCircle size={18} />
                               </button>

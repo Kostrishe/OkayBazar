@@ -1,10 +1,11 @@
-// client/src/lib/rotatingHero.js
 import { fetchRandomGames } from "../services/games";
 
-const HERO_CACHE_KEY = "okbazar.hero.v4"; // новый ключ, чтобы сбросить старый кеш
+const HERO_CACHE_KEY = "okbazar.hero.v4";
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-// формат цены как в карточке: целые ₽ с разделителями
+/**
+ * Формат цены как в карточке: целые ₽ с разделителями
+ */
 function formatRubNoCoins(v) {
   if (v == null || v === "") return "";
   const n = Number(String(v).replace(",", "."));
@@ -18,6 +19,10 @@ function formatRubNoCoins(v) {
   );
 }
 
+/**
+ * Получение слайдов для героя главной страницы.
+ * Кеширует на неделю, предпочитает игры с картинками.
+ */
 export async function getRotatingHeroSlides() {
   const now = Date.now();
   const cached = readCache();
@@ -35,20 +40,47 @@ export async function getRotatingHeroSlides() {
       writeCache({ ts: now, slides });
       return slides;
     }
-  } catch (e) {
-    console.error("Hero slides load error:", e);
+  } catch {
+    // тихо игнорируем ошибку
   }
 
   // если не получилось — вернём что было в кеше (даже если просрочен), либо заглушки
   if (cached?.slides?.length) return cached.slides;
 
   return [
-    { id: null, slug: null, title: "Игра", subtitle: "", cta: "Подробнее", image: "", badge: "Выбор OkayBazar" },
-    { id: null, slug: null, title: "Игра", subtitle: "", cta: "Подробнее", image: "", badge: "Выбор OkayBazar" },
-    { id: null, slug: null, title: "Игра", subtitle: "", cta: "Подробнее", image: "", badge: "Выбор OkayBazar" },
+    {
+      id: null,
+      slug: null,
+      title: "Игра",
+      subtitle: "",
+      cta: "Подробнее",
+      image: "",
+      badge: "Выбор OkayBazar",
+    },
+    {
+      id: null,
+      slug: null,
+      title: "Игра",
+      subtitle: "",
+      cta: "Подробнее",
+      image: "",
+      badge: "Выбор OkayBazar",
+    },
+    {
+      id: null,
+      slug: null,
+      title: "Игра",
+      subtitle: "",
+      cta: "Подробнее",
+      image: "",
+      badge: "Выбор OkayBazar",
+    },
   ];
 }
 
+/**
+ * Преобразование игр в слайды для героя
+ */
 function gamesToSlides(games) {
   return (games || []).slice(0, 3).map((g) => ({
     id: g?.id ?? null,
@@ -61,6 +93,9 @@ function gamesToSlides(games) {
   }));
 }
 
+/**
+ * Выбор 3 игр с приоритетом для игр с картинками
+ */
 function pick3PreferWithImages(list = []) {
   if (!Array.isArray(list)) return [];
   const withImg = [];
@@ -71,11 +106,19 @@ function pick3PreferWithImages(list = []) {
 }
 
 function isFresh(cached, now) {
-  return cached && Array.isArray(cached.slides) && now - cached.ts < ONE_WEEK_MS;
+  return (
+    cached && Array.isArray(cached.slides) && now - cached.ts < ONE_WEEK_MS
+  );
 }
+
 function hasImages(slides) {
-  return Array.isArray(slides) && slides.length === 3 && slides.every((s) => !!s?.image);
+  return (
+    Array.isArray(slides) &&
+    slides.length === 3 &&
+    slides.every((s) => !!s?.image)
+  );
 }
+
 function readCache() {
   try {
     const raw = localStorage.getItem(HERO_CACHE_KEY);
@@ -84,8 +127,11 @@ function readCache() {
     return null;
   }
 }
+
 function writeCache(obj) {
   try {
     localStorage.setItem(HERO_CACHE_KEY, JSON.stringify(obj));
-  } catch { /* empty */ }
+  } catch {
+    // тихо игнорируем ошибку записи в localStorage
+  }
 }

@@ -29,14 +29,15 @@ import {
   Save,
   X,
   Plus,
-  Trash2,
   CheckCircle,
   XCircle,
   Info,
   AlertCircle,
 } from "lucide-react";
 
-// Локальный компонент уведомлений для AdminGamesPage
+// =======================
+// ЛОКАЛЬНЫЙ КОМПОНЕНТ УВЕДОМЛЕНИЙ
+// =======================
 function Notification({ message, type, onClose }) {
   const icons = {
     success: <CheckCircle size={20} />,
@@ -64,6 +65,7 @@ function Notification({ message, type, onClose }) {
       <button
         onClick={onClose}
         className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition"
+        type="button"
       >
         <X size={16} />
       </button>
@@ -83,13 +85,16 @@ function Notification({ message, type, onClose }) {
   );
 }
 
-// Хук для управления уведомлениями
+// =======================
+// ХУК ДЛЯ УПРАВЛЕНИЯ УВЕДОМЛЕНИЯМИ
+// =======================
 function useNotifications() {
   const [notifications, setNotifications] = useState([]);
 
   const addNotification = (message, type = "info") => {
     const id = Date.now() + Math.random();
     setNotifications((prev) => [...prev, { id, message, type }]);
+    // автозакрытие через 5 секунд
     setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, 5000);
@@ -111,7 +116,9 @@ function useNotifications() {
   };
 }
 
-// Утилиты форматирования
+// =======================
+// УТИЛИТЫ ФОРМАТИРОВАНИЯ
+// =======================
 function fmt(dt) {
   if (!dt) return "—";
   try {
@@ -151,13 +158,17 @@ function listToText(arr) {
     .join(", ");
 }
 
+// расчёт финальной цены со скидкой
 function calcFinal(base, discount) {
   const price = Number(base || 0);
   const disc = Number(discount || 0);
   if (!disc) return price;
+  // если скидка от 0 до 1 — это доля (например, 0.15 = 15%)
   if (disc > 0 && disc < 1) return Math.max(0, Math.round(price * (1 - disc)));
+  // если от 1 до 100 — это проценты
   if (disc > 1 && disc < 100)
     return Math.max(0, Math.round(price * (1 - disc / 100)));
+  // если >= 100 — это абсолютная скидка в рублях
   if (disc >= 100) return Math.max(0, price - disc);
   return price;
 }
@@ -178,6 +189,9 @@ function avgRating(data) {
   return Math.round((sum / nums.length) * 10) / 10;
 }
 
+// =======================
+// МОДАЛЬНОЕ ОКНО
+// =======================
 function Modal({ open, onClose, children, title = "Диалог" }) {
   if (!open) return null;
   return (
@@ -213,6 +227,12 @@ function Modal({ open, onClose, children, title = "Диалог" }) {
   );
 }
 
+// =======================
+// ОСНОВНАЯ СТРАНИЦА
+// =======================
+/**
+ * GET /api/games
+ */
 export default function AdminGamesPage() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
@@ -227,7 +247,7 @@ export default function AdminGamesPage() {
       try {
         const list = await fetchGamesRaw();
         setItems(Array.isArray(list) ? list : []);
-      } catch (e) {
+      } catch {
         setError("Не удалось загрузить игры");
         setItems([]);
       }
@@ -258,6 +278,7 @@ export default function AdminGamesPage() {
     }
   }
 
+  // перезагружает и список игр, и детали конкретной игры
   async function refreshRow(id) {
     try {
       const [rawList, full] = await Promise.all([
@@ -269,7 +290,9 @@ export default function AdminGamesPage() {
         ...s,
         [id]: { data: full || {}, loading: false, error: false },
       }));
-    } catch {}
+    } catch (e) {
+      console.error("Ошибка обновления игры:", e);
+    }
   }
 
   return (
@@ -356,6 +379,7 @@ export default function AdminGamesPage() {
                             }
                             aria-label={isOpen ? "Свернуть" : "Развернуть"}
                             title={isOpen ? "Свернуть" : "Развернуть"}
+                            type="button"
                           >
                             <ChevronDown size={16} />
                           </button>
@@ -434,6 +458,9 @@ export default function AdminGamesPage() {
   );
 }
 
+// =======================
+// РЕДАКТОР ИГРЫ
+// =======================
 function GameEditor({ data, onSaved, isNew = false, notify }) {
   const [editing, setEditing] = useState(isNew);
   const [saving, setSaving] = useState(false);
@@ -477,6 +504,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
     })();
   }, []);
 
+  // превью финальной цены со скидкой
   const finalPricePreview = (() => {
     const base = Number(form.base_price || 0);
     const disc = Number(form.discount_percent || 0);
@@ -491,7 +519,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
 
     setSaving(true);
     try {
-      // 1. Скриншоты нормализуем в массив объектов {url, alt, order}
+      // нормализуем скриншоты в массив объектов {url, alt, order}
       const normalizedScreenshots = (form.screenshots || [])
         .filter(Boolean)
         .map((item, i) => {
@@ -505,7 +533,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
           };
         });
 
-      // 2. Основные поля игры (таблица games)
+      // основные поля игры (таблица games)
       const payloadGame = {
         title: form.title || null,
         description: form.description || null,
@@ -520,12 +548,12 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
         screenshots: normalizedScreenshots,
       };
 
-      // 3. Жанры: сервер ждёт имена жанров
+      // жанры: сервер ждёт имена жанров
       const selectedGenreNames = Array.isArray(form.genreNames)
         ? form.genreNames.filter(Boolean)
         : [];
 
-      // 4. Платформы: сервер ждёт массив числовых ID платформ
+      // платформы: сервер ждёт массив числовых ID платформ
       const selectedPlatformIds = Array.isArray(form.platformIds)
         ? form.platformIds
             .map((v) => Number(v))
@@ -535,9 +563,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
       let gameId;
 
       if (isNew) {
-        // === СОЗДАНИЕ НОВОЙ ИГРЫ ===
-        // ВАЖНО: сюда сразу добавляем platform_ids,
-        // чтобы GamesController.create сразу создал строки в game_platforms
+        // создание новой игры — сразу добавляем platform_ids
         const created = await createGame({
           ...payloadGame,
           platform_ids: selectedPlatformIds,
@@ -548,7 +574,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
           throw new Error("Игра не создана: нет id от сервера.");
         }
 
-        // доп. синхронизация жанров (если это отдельный механизм у тебя)
+        // синхронизация жанров (если это отдельный механизм у меня)
         if (selectedGenreNames.length) {
           await updateGameGenres(gameId, {
             genreNames: selectedGenreNames,
@@ -556,15 +582,13 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
         }
 
         // на случай, если createGame НЕ создаёт связи платформ
-        // (или ты хочешь их перезаписать гарантированно):
         await updateGamePlatforms(gameId, {
           platformIds: selectedPlatformIds,
         });
       } else {
-        // === ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕЙ ИГРЫ ===
+        // обновление существующей игры
         gameId = data.id;
 
-        // обновляем саму игру
         await updateGame(gameId, payloadGame);
 
         // жанры
@@ -572,7 +596,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
           genreNames: selectedGenreNames,
         });
 
-        // ПЛАТФОРМЫ (главное!)
+        // платформы (главное!)
         await updateGamePlatforms(gameId, {
           platformIds: selectedPlatformIds,
         });
@@ -609,8 +633,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
 
     setUploading(true);
     try {
-      const { url } = await uploadImageTo("covers", file); // Загрузка в папку covers
-      console.log("Cover uploaded:", url);
+      const { url } = await uploadImageTo("covers", file);
       setForm((prev) => ({ ...prev, cover_url: url }));
       notify.info(
         "Обложка загружена. Нажмите 'Сохранить' для применения изменений."
@@ -636,8 +659,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
     try {
       const uploaded = [];
       for (const f of files) {
-        const { url } = await uploadImageTo("screens", f); // Загрузка в папку screens
-        console.log("Screenshot uploaded:", url);
+        const { url } = await uploadImageTo("screens", f);
         uploaded.push(url);
       }
       setForm((prev) => ({
@@ -789,7 +811,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
                   }
                 />
               </Field>
-              <Field label="Разработчик">
+<Field label="Разработчик">
                 <input
                   className="w-full rounded-xl px-3 py-2 bg-white/15 text-white border border-white/30"
                   value={form.developer}
@@ -1071,6 +1093,7 @@ function GameEditor({ data, onSaved, isNew = false, notify }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function InfoRow({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center gap-2">

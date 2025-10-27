@@ -13,7 +13,7 @@ import {
 } from "../../services/directory";
 
 // =======================
-// ЛОКАЛЬНЫЙ КОМПОНЕНТ МОДАЛКИ
+// КОМПОНЕНТ МОДАЛКИ
 // =======================
 function DirectoryModal({
   open,
@@ -213,6 +213,7 @@ export default function AdminDirectoryPage() {
           <button
             onClick={() => setShowGenreModal(true)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 transition"
+            type="button"
           >
             <Plus size={16} />
             Добавить жанр
@@ -255,6 +256,7 @@ export default function AdminDirectoryPage() {
                         onClick={() => handleRemoveGenre(g.id)}
                         className="inline-flex items-center justify-center text-red-400 hover:text-red-500 transition"
                         title="Удалить жанр"
+                        type="button"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -278,6 +280,7 @@ export default function AdminDirectoryPage() {
           <button
             onClick={() => setShowPlatformModal(true)}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 transition"
+            type="button"
           >
             <Plus size={16} />
             Добавить платформу
@@ -320,6 +323,7 @@ export default function AdminDirectoryPage() {
                         onClick={() => handleRemovePlatform(p.id)}
                         className="inline-flex items-center justify-center text-red-400 hover:text-red-500 transition"
                         title="Удалить платформу"
+                        type="button"
                       >
                         <Trash2 size={16} />
                       </button>

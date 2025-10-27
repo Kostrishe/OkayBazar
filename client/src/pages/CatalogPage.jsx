@@ -1,4 +1,3 @@
-// src/pages/CatalogPage.jsx
 import React, { useCallback, useEffect, useState } from "react";
 import { fetchGames, fetchGenres, fetchPlatforms } from "../services/games";
 
@@ -7,16 +6,14 @@ import SelectGlass from "../components/ui/SelectGlass";
 import { Glass, Section } from "../components/ui/Glass";
 import ProductCard from "../components/ProductCard";
 import Background from "../components/ui/Background";
-import EmptyState from "../components/ui/EmptyState";
-import { SearchX } from "lucide-react";
-import GameModal from "../components/GameModal"; // ← добавлено
+import GameModal from "../components/GameModal";
 
 const LIMIT = 25;
 
 export default function CatalogPage() {
   // справочники из БД
-  const [genresList, setGenresList] = useState([]); // [{id, name}]
-  const [platformsList, setPlatformsList] = useState([]); // [{id, name}]
+  const [genresList, setGenresList] = useState([]);
+  const [platformsList, setPlatformsList] = useState([]);
 
   // выбранные значения (как ID)
   const [selectedGenreIds, setSelectedGenreIds] = useState(new Set());
@@ -25,16 +22,16 @@ export default function CatalogPage() {
   const [priceMax, setPriceMax] = useState("");
 
   // сортировка и данные
-  const [sort, setSort] = useState("name"); // name | price_asc | price_desc
+  const [sort, setSort] = useState("name");
   const [games, setGames] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
 
   // состояние модалки игры
-  const [openedGame, setOpenedGame] = useState(null); // id или slug
+  const [openedGame, setOpenedGame] = useState(null);
 
-  // загрузка справочников
+  // загрузка справочников при монтировании
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -48,7 +45,10 @@ export default function CatalogPage() {
     };
   }, []);
 
-  // загрузка списка игр
+  /**
+   * Загрузка списка игр с учётом фильтров и сортировки.
+   * @param {boolean} reset - Если true, сбрасывает список и загружает с первой страницы
+   */
   const load = useCallback(
     async (reset = false) => {
       setLoading(true);
@@ -69,8 +69,7 @@ export default function CatalogPage() {
 
         setHasMore(items.length === LIMIT);
         setPage(nextPage + 1);
-      } catch (e) {
-        console.error(e);
+      } catch {
         if (reset) setGames([]);
         setHasMore(false);
       } finally {
@@ -80,11 +79,14 @@ export default function CatalogPage() {
     [sort, selectedGenreIds, selectedPlatformIds, priceMin, priceMax, page]
   );
 
+  // загрузка при изменении фильтров
   useEffect(() => {
     load(true);
   }, [load]);
 
-  // переключатели через value из input (исключаем undefined)
+  /**
+   * Рендер списка жанров с чекбоксами.
+   */
   const renderGenres = () => (
     <div className="mb-4">
       <div className="text-white/75 text-sm mb-2">Жанры</div>
@@ -112,6 +114,9 @@ export default function CatalogPage() {
     </div>
   );
 
+  /**
+   * Рендер списка платформ с чекбоксами.
+   */
   const renderPlatforms = () => (
     <div className="mb-4">
       <div className="text-white/75 text-sm mb-2">Платформы</div>
@@ -139,6 +144,9 @@ export default function CatalogPage() {
     </div>
   );
 
+  /**
+   * Сброс всех фильтров.
+   */
   const resetFilters = () => {
     setSelectedGenreIds(new Set());
     setSelectedPlatformIds(new Set());
@@ -248,14 +256,14 @@ export default function CatalogPage() {
               {/* сетка карточек */}
               <div
                 className="grid gap-5
-             [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]    /* ≥ lg */
-             sm:[grid-template-columns:repeat(auto-fill,minmax(180px,1fr))] /* ≥ sm */
-             xl:[grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] /* ≥ xl */"
+             [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]
+             sm:[grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]
+             xl:[grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]"
               >
                 {games.length === 0 && !loading && (
                   <div className="col-span-full">
                     <Glass className="relative overflow-hidden text-center px-8 py-12">
-                      {/* лёгкий «блик» */}
+                      {/* лёгкий блик */}
                       <div
                         className="pointer-events-none absolute -top-24 -right-28 h-72 w-72 rounded-full opacity-25 blur-3xl"
                         style={{
@@ -264,10 +272,6 @@ export default function CatalogPage() {
                         }}
                       />
                       <div className="relative flex flex-col items-center gap-4">
-                        <div className="p-4 rounded-2xl bg-white/5 backdrop-blur">
-                          <SearchX className="w-12 h-12 opacity-90" />
-                        </div>
-
                         <h3 className="text-2xl font-semibold tracking-tight">
                           Ничего не найдено
                         </h3>
@@ -292,9 +296,7 @@ export default function CatalogPage() {
                   <ProductCard
                     key={g.id || g.slug || g.name}
                     {...g}
-                    onOpen={
-                      () => setOpenedGame(g.id ?? g.slug ?? g.name) // ← пробрасываем открытие модалки
-                    }
+                    onOpen={() => setOpenedGame(g.id ?? g.slug ?? g.name)}
                   />
                 ))}
               </div>

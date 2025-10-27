@@ -2,8 +2,7 @@ import React from "react";
 import THEME from "../../styles/theme";
 
 /**
- * Glass — базовая оболочка «стекла».
- * variant="default" — как было.
+ * variant="default" — классический вид.
  * variant="liquid"  — плотное матовое стекло (без прозрачности), слои внутри.
  */
 export const Glass = ({
@@ -70,7 +69,7 @@ export const Glass = ({
     );
   }
 
-  // старый вариант
+  // старый вариант (default)
   return (
     <div
       className={`backdrop-blur-3xl bg-white/12 border border-white/20 rounded-2xl shadow-[0_16px_60px_rgba(124,77,255,0.10)] ${className}`}
@@ -85,6 +84,9 @@ export const Glass = ({
   );
 };
 
+/**
+ * GlassCard — карточка
+ */
 export const GlassCard = ({ className = "", children }) => (
   <div className={`relative rounded-2xl overflow-hidden ${className}`}>
     <div className="absolute inset-0 backdrop-blur-3xl backdrop-saturate-150" />
@@ -98,7 +100,9 @@ export const GlassCard = ({ className = "", children }) => (
   </div>
 );
 
-/** Оболочка секции с опциональной ссылкой "Смотреть всё" */
+/**
+ * Section — оболочка секции
+ */
 export const Section = ({
   title,
   children,

@@ -2,15 +2,25 @@ import bcrypt from 'bcryptjs';
 
 import { pool } from '../db/pool.js';
 
-const err = (s, m) => Object.assign(new Error(m), { status: s });
+function httpError(status, message) {
+  const e = new Error(message);
+  e.status = status;
+  return e;
+}
 
-// Разрешаем только admin / customer
+/**
+ * Функция для нормализации роли
+ * Разрешаем только admin или customer
+ */
 function normalizeRole(role) {
   return role === 'admin' ? 'admin' : 'customer';
 }
 
 export const UsersController = {
-  // GET /api/users
+  /**
+   * GET /api/users
+   * Возвращает список всех пользователей (без паролей)
+   */
   async list(_req, res, next) {
     try {
       const { rows } = await pool.query(
@@ -22,30 +32,43 @@ export const UsersController = {
     }
   },
 
-  // GET /api/users/:id
+  /**
+   * GET /api/users/:id
+   * Возвращает одного пользователя по id (без пароля)
+   */
   async getOne(req, res, next) {
     try {
       const { id } = req.params;
+
       const { rows } = await pool.query(
         'SELECT id, email, full_name, role, created_at, updated_at FROM users WHERE id=$1',
         [id]
       );
-      if (!rows[0]) throw err(404, 'User not found');
+
+      if (!rows[0]) {
+        throw httpError(404, 'User not found');
+      }
+
       res.json(rows[0]);
     } catch (e) {
       next(e);
     }
   },
 
-  // POST /api/users  — создаём пользователя (пароль хэшируем)
+  /**
+   * POST /api/users
+   * Создаёт нового пользователя. Пароль хэшируется bcrypt
+   */
   async create(req, res, next) {
     try {
       const { email, password, full_name, role } = req.body;
       const safeRole = normalizeRole(role);
 
-      if (!email || !password) throw err(400, 'email and password are required');
+      if (!email || !password) {
+        throw httpError(400, 'email and password are required');
+      }
 
-      // хэш пароля (если хочешь без хэша — используй const passwordHash = password;)
+      // хэшируем пароль (если хочешь без хэша — используй const passwordHash = password;)
       const passwordHash = await bcrypt.hash(password, 10);
 
       const { rows } = await pool.query(
@@ -61,11 +84,14 @@ export const UsersController = {
     }
   },
 
-  // PUT /api/users/:id — по ТЗ меняем только роль
+  /**
+   * PUT /api/users/:id
+   * Обновляет роль пользователя. По ТЗ меняем только роль
+   */
   async update(req, res, next) {
     try {
       const { id } = req.params;
-      const { role } = req.body; // не деструктурируем лишнего, чтобы не ловить no-unused-vars
+      const { role } = req.body;
       const safeRole = normalizeRole(role);
 
       const { rows } = await pool.query(
@@ -76,19 +102,29 @@ export const UsersController = {
         [id, safeRole]
       );
 
-      if (!rows[0]) throw err(404, 'User not found');
+      if (!rows[0]) {
+        throw httpError(404, 'User not found');
+      }
+
       res.json(rows[0]);
     } catch (e) {
       next(e);
     }
   },
 
-  // DELETE /api/users/:id
+  /**
+   * DELETE /api/users/:id
+   * Удаляет пользователя по id
+   */
   async remove(req, res, next) {
     try {
       const { id } = req.params;
       const { rowCount } = await pool.query('DELETE FROM users WHERE id=$1', [id]);
-      if (!rowCount) throw err(404, 'User not found');
+
+      if (!rowCount) {
+        throw httpError(404, 'User not found');
+      }
+
       res.status(204).send();
     } catch (e) {
       next(e);
